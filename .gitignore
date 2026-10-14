@@ -1,0 +1,11 @@
+/bin/
+*.test
+*.out
+coverage.*
+.env
+*.parquet
+*.ndjson.tmp
+.idea/
+.vscode/
+.DS_Store
+.claude/worktrees/

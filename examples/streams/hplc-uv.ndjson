@@ -1,0 +1,12 @@
+{"ts":"2026-10-14T09:30:00.000Z","channel":"UV_254nm","value":0.0012,"unit":"AU"}
+{"ts":"2026-10-14T09:30:00.000Z","channel":"pressure","value":211.8,"unit":"bar"}
+{"ts":"2026-10-14T09:30:00.500Z","channel":"UV_254nm","value":0.0015,"unit":"AU"}
+{"ts":"2026-10-14T09:30:01.000Z","channel":"UV_254nm","value":0.0431,"unit":"AU"}
+{"ts":"2026-10-14T09:30:01.000Z","channel":"pressure","value":212.4,"unit":"bar"}
+{"ts":"2026-10-14T09:30:01.500Z","channel":"UV_254nm","value":0.3877,"unit":"AU"}
+{"ts":"2026-10-14T09:30:02.000Z","channel":"UV_254nm","value":0.4312,"unit":"AU"}
+{"ts":"2026-10-14T09:30:02.000Z","channel":"pressure","value":212.9,"unit":"bar"}
+{"ts":"2026-10-14T09:30:02.500Z","channel":"UV_254nm","value":0.2104,"unit":"AU"}
+{"ts":"2026-10-14T09:30:03.000Z","channel":"UV_254nm","value":0.0398,"unit":"AU"}
+{"ts":"2026-10-14T09:30:03.000Z","channel":"pressure","value":212.2,"unit":"bar"}
+{"ts":"2026-10-14T09:30:03.500Z","channel":"UV_254nm","value":0.0021,"unit":"AU"}
