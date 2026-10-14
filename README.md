@@ -347,6 +347,9 @@ planned | running | paused ──► aborted        (requires a reason)
 │   └── jsonld/                   # W3C PROV-O JSON-LD encoder
 ├── tools/verify_audit.py         # standalone chain verifier (stdlib only)
 ├── docs/audit-chain.md           # normative digest spec + threat model
+├── specs/                        # EARS specs that drive all work (TEMPLATE.md, SPEC-001)
+├── .claude/agents/               # spec-writer, work-orchestrator, implementer
+├── CLAUDE.md                     # conventions for humans and agents
 ├── examples/                     # sample protocol and instrument stream
 ├── web/                          # frontend (planned)
 ├── Dockerfile                    # multi-stage → distroless/static, nonroot
@@ -383,11 +386,19 @@ Bench scientists, lab automation engineers, QA/CSV folks, and Go developers
 are all equally welcome. The best issues start with *"at the bench, I need
 to…"*.
 
-- `make test` must pass; `make test-integration` for anything touching storage.
-- New invariants go in the database, with an integration test proving the
-  database rejects the violation.
-- Changing the audit digest format requires a new `DigestVersion`, never an
-  edit to v1.
+- **Specs first.** Every change traces to an EARS requirement in
+  [`specs/`](specs/). Start from [`specs/TEMPLATE.md`](specs/TEMPLATE.md);
+  [`SPEC-001`](specs/SPEC-001-core-integrity.md) records the invariants
+  already enforced.
+- **Simplicity wins.** Standard library first, no speculative abstraction, new
+  dependencies justified in a spec's Decision log.
+- **Tests are for business-critical rules only**: requirements marked
+  `Test: yes`, each test citing its ID. No coverage targets.
+- New invariants go in the database. Migrations are forward-only, and audit
+  digest v1 is frozen.
+- [`CLAUDE.md`](CLAUDE.md) holds the full conventions, and `.claude/agents/`
+  has the `spec-writer` → `work-orchestrator` → `implementer` workflow for
+  Claude Code.
 
 ## License
 

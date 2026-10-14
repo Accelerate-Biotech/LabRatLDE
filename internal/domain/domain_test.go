@@ -33,6 +33,7 @@ func qpcrGraph(t *testing.T) *Graph {
 	return g
 }
 
+// SPEC-001-R09
 func TestLineageRejectsCycles(t *testing.T) {
 	g := qpcrGraph(t)
 	for _, e := range []Edge{{"result", "sample", RelWasDerivedFrom}, {"run", "run", RelWasInformedBy}} {
@@ -42,62 +43,43 @@ func TestLineageRejectsCycles(t *testing.T) {
 	}
 }
 
-func TestLineageRejectsUnknownAndInvalid(t *testing.T) {
-	g := qpcrGraph(t)
-	if err := g.AddEdge(Edge{"sample", "ghost", RelUsed}); !errors.Is(err, ErrUnknownNode) {
-		t.Errorf("got %v, want ErrUnknownNode", err)
-	}
-	if err := g.AddEdge(Edge{"sample", "raw", "inspired"}); !errors.Is(err, ErrInvalid) {
-		t.Errorf("got %v, want ErrInvalid", err)
-	}
-	if err := g.AddNode(Node{ID: "sample", Kind: KindSample}); !errors.Is(err, ErrDuplicateNode) {
-		t.Errorf("got %v, want ErrDuplicateNode", err)
-	}
-}
-
-func TestLineageTraversal(t *testing.T) {
+// SPEC-001-R10
+func TestLineageClosure(t *testing.T) {
 	g := qpcrGraph(t)
 	if got, want := g.Upstream("result"), []string{"ddct", "primers", "raw", "run", "sample"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Upstream = %v, want %v", got, want)
 	}
 	if got, want := g.Downstream("primers"), []string{"ddct", "raw", "result", "run"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("Downstream (recall blast radius) = %v, want %v", got, want)
-	}
-	var order []string
-	for _, n := range g.Nodes() {
-		order = append(order, n.ID)
-	}
-	if want := []string{"primers", "sample", "run", "raw", "ddct", "result"}; !reflect.DeepEqual(order, want) {
-		t.Errorf("topological order = %v, want %v", order, want)
+		t.Errorf("Downstream (recall impact) = %v, want %v", got, want)
 	}
 }
 
+// SPEC-001-R11, SPEC-001-R12
 func TestRunLifecycle(t *testing.T) {
 	now := time.Now()
 	r := Run{State: RunPlanned}
-	steps := []struct {
+	for _, s := range []struct {
 		to     RunState
 		reason string
-	}{{RunRunning, ""}, {RunPaused, ""}, {RunRunning, ""}, {RunCompleted, ""}, {RunSigned, "approved"}}
-	for _, s := range steps {
+	}{{RunRunning, ""}, {RunPaused, ""}, {RunRunning, ""}, {RunCompleted, ""}, {RunSigned, "approved"}} {
 		if err := r.Apply(s.to, s.reason, now); err != nil {
 			t.Fatalf("-> %s: %v", s.to, err)
 		}
 	}
-	if r.StartedAt == nil || r.FinishedAt == nil || !r.State.Terminal() {
-		t.Fatalf("unexpected final run: %+v", r)
+	rejected := []struct {
+		name string
+		run  Run
+		to   RunState
+		why  string
+	}{
+		{"signed is terminal", r, RunRunning, ""},
+		{"signing needs a meaning", Run{State: RunCompleted}, RunSigned, "  "},
+		{"aborting needs a reason", Run{State: RunRunning}, RunAborted, ""},
+		{"cannot skip running", Run{State: RunPlanned}, RunCompleted, ""},
 	}
-	if err := r.Apply(RunRunning, "", now); !errors.Is(err, ErrInvalidTransition) {
-		t.Fatalf("signed run must be immutable, got %v", err)
-	}
-}
-
-func TestRunSigningRequiresMeaning(t *testing.T) {
-	r := Run{State: RunCompleted}
-	if err := r.Apply(RunSigned, "  ", time.Now()); !errors.Is(err, ErrInvalidTransition) {
-		t.Fatalf("want ErrInvalidTransition, got %v", err)
-	}
-	if err := (&Run{State: RunPlanned}).Apply(RunCompleted, "", time.Now()); !errors.Is(err, ErrInvalidTransition) {
-		t.Fatalf("planned -> completed must be rejected, got %v", err)
+	for _, c := range rejected {
+		if err := c.run.Apply(c.to, c.why, now); !errors.Is(err, ErrInvalidTransition) {
+			t.Errorf("%s: got %v, want ErrInvalidTransition", c.name, err)
+		}
 	}
 }

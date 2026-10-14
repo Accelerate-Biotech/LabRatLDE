@@ -65,6 +65,7 @@ func appendN(t *testing.T, db *storage.DB, tenant string, n int) {
 	}
 }
 
+// SPEC-001-R07
 func TestDatabaseAndEngineAgreeOnChain(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
@@ -94,6 +95,7 @@ func TestDatabaseAndEngineAgreeOnChain(t *testing.T) {
 	}
 }
 
+// SPEC-001-R05
 func TestDatabaseRejectsForgedEvent(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
@@ -118,6 +120,7 @@ func TestDatabaseRejectsForgedEvent(t *testing.T) {
 	}
 }
 
+// SPEC-001-R06
 func TestLedgerIsAppendOnly(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
@@ -139,6 +142,7 @@ func TestLedgerIsAppendOnly(t *testing.T) {
 	}
 }
 
+// SPEC-001-R08
 func TestRowLevelSecurityIsolatesTenants(t *testing.T) {
 	db := openTestDB(t)
 	a, b := newTenant(t, db), newTenant(t, db)
