@@ -19,7 +19,7 @@ The initial scaffold was built before the spec process existed. This spec record
 
 **Out of scope**
 - Authentication (dev headers only; OIDC needs its own spec).
-- §11.200 signer re-authentication, external anchoring of chain heads, S3 archival, the web UI.
+- §11.200 signer re-authentication, external anchoring of chain heads, data export formats and archival storage (no architecture decision yet), the web UI.
 
 ## 3. Simplicity budget
 
@@ -79,6 +79,6 @@ The initial scaffold was built before the spec process existed. This spec record
 | Date | Decision | Why | Alternatives rejected |
 |---|---|---|---|
 | 2026-10-14 | `github.com/jackc/pgx/v5` | Needed for Postgres-specific types (arrays, jsonb, bytea), simple-protocol multi-statement migrations and SQLSTATE access | `database/sql` + `lib/pq` (in maintenance mode, weaker type support) |
-| 2026-10-14 | `github.com/parquet-go/parquet-go` | Parquet is the promised open export format; writing it by hand isn't reasonable | Apache Arrow Go (much larger) |
 | 2026-10-14 | `gopkg.in/yaml.v3` | Protocol frontmatter is YAML | Hand-rolled parser |
+| 2026-10-15 | Removed Parquet export, JSON-LD export and MinIO/S3 settings | No architecture decision on export formats or archival storage yet; each needs its own spec | Keeping them as speculative scaffolding |
 | 2026-10-14 | Audit hashing in both Go and PL/pgSQL | The database must reject forged events itself; Go verifies independently | Hashing in Go only (trusts the application) |

@@ -22,13 +22,6 @@ type Config struct {
 	LogLevel        slog.Level    // LDE_LOG_LEVEL
 	ShutdownTimeout time.Duration // LDE_SHUTDOWN_TIMEOUT
 	MaxIngestBytes  int64         // LDE_MAX_INGEST_BYTES, per streamed request
-	VocabIRI        string        // LDE_VOCAB_IRI, namespace for JSON-LD exports
-
-	// S3-compatible object storage for Parquet archives (MinIO in dev).
-	S3Endpoint  string // LDE_S3_ENDPOINT
-	S3Bucket    string // LDE_S3_BUCKET
-	S3AccessKey string // LDE_S3_ACCESS_KEY
-	S3SecretKey string // LDE_S3_SECRET_KEY
 }
 
 func Load() (Config, error) {
@@ -36,11 +29,6 @@ func Load() (Config, error) {
 		Env:         env("LDE_ENV", "dev"),
 		HTTPAddr:    env("LDE_HTTP_ADDR", ":8080"),
 		DatabaseURL: env("LDE_DATABASE_URL", "postgres://lde:lde@localhost:5432/lde?sslmode=disable"),
-		VocabIRI:    env("LDE_VOCAB_IRI", "https://labrat.dev/ns#"),
-		S3Endpoint:  env("LDE_S3_ENDPOINT", "http://localhost:9000"),
-		S3Bucket:    env("LDE_S3_BUCKET", "lde-archive"),
-		S3AccessKey: env("LDE_S3_ACCESS_KEY", "lde"),
-		S3SecretKey: env("LDE_S3_SECRET_KEY", "lde-dev-secret"),
 	}
 	var err error
 	if c.AutoMigrate, err = strconv.ParseBool(env("LDE_AUTO_MIGRATE", "true")); err != nil {

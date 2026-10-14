@@ -52,7 +52,6 @@ func (s *Server) Handler() http.Handler {
 
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)
 	v1.HandleFunc("POST /v1/instruments/{id}/stream", s.streamReadings)
-	v1.HandleFunc("GET /v1/instruments/{id}/readings.parquet", s.exportParquet)
 
 	v1.HandleFunc("GET /v1/audit/events", s.listAuditEvents)
 	v1.HandleFunc("GET /v1/audit/export.ndjson", s.exportAudit)

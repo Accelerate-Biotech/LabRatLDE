@@ -10,7 +10,7 @@ LabRat: an open-source Laboratory Development Environment (LDE). API-first Go en
 | `internal/domain/` | Lineage DAG, run state machine | Pure Go: no I/O, database or HTTP |
 | `internal/audit/` | Hash-chain ledger + Postgres binding | Digest format is frozen (see Hard rules) |
 | `internal/storage/` | pgx pool, `WithTenant` RLS boundary, embedded migrations | |
-| `internal/api/`, `ingest/`, `export/`, `config/` | HTTP handlers, NDJSON ingest, Parquet/JSON-LD export, env config | |
+| `internal/api/`, `ingest/`, `config/` | HTTP handlers, NDJSON instrument ingest, env config | |
 | `pkg/` | Small libraries other projects may import | |
 | `docs/audit-chain.md` | Normative audit digest spec | |
 | `specs/` | Specs that drive all new work (`SPEC-NNN-slug.md`) | Start from `specs/TEMPLATE.md` |
@@ -46,7 +46,7 @@ Complexity is a cost paid by every future reader. Avoid it unless a spec require
 ## Testing policy
 
 - **Only test requirements marked `Test: yes` in a spec.** These are the business-critical rules: audit chain integrity, electronic signatures and run lifecycle, lineage correctness, tenant isolation, and chain of custody for instrument data.
-- **Hundreds of arbitrary unit tests are forbidden.** No tests for getters, wiring, parsing helpers, library behaviour (pgx, parquet-go, yaml), HTTP plumbing or trivial code. No coverage targets.
+- **Hundreds of arbitrary unit tests are forbidden.** No tests for getters, wiring, parsing helpers, library behaviour (pgx, yaml), HTTP plumbing or trivial code. No coverage targets.
 - Put the requirement ID in a comment on each test, e.g. `// SPEC-001-R03`. One table-driven test per rule is preferred.
 - A rule enforced by the database is tested against the database (`internal/storage/integration_test.go`, run with `make test-integration`).
 - If a requirement seems to need a test but isn't marked `Test: yes`, say so. Don't add the test quietly.
@@ -58,7 +58,7 @@ Complexity is a cost paid by every future reader. Avoid it unless a spec require
 ## Commands
 
 ```bash
-docker compose up -d        # Postgres 16 + MinIO
+docker compose up -d        # Postgres 16
 go run ./cmd/server         # API on :8080, dev tenant 00000000-0000-4000-8000-000000000001
 make test                   # unit tests (no database)
 make test-integration       # + database guarantees; needs compose running

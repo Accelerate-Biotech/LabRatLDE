@@ -88,6 +88,6 @@ entire chain consistently. Defences, in increasing strength:
 - Ship the head hash elsewhere periodically (logs, email, a ticket system).
 - Anchor heads in an external transparency log or RFC 3161 timestamp authority
   *(roadmap)*.
-- Replicate events to WORM object storage (S3 Object Lock) *(roadmap)*.
+- Replicate events to write-once (WORM) storage *(roadmap)*.
 
 Any one of these turns a silent rewrite into a detectable one.

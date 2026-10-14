@@ -9,7 +9,6 @@ import (
 
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/audit"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/domain"
-	"github.com/Accelerate-Biotech/LabRatLDE/internal/export"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/ingest"
 )
 
@@ -154,73 +153,4 @@ func (s *Server) streamReadings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, resp)
-}
-
-// exportParquet streams an instrument's readings as Apache Parquet.
-//
-//	GET /v1/instruments/{id}/readings.parquet?dataset_id=<uuid>
-func (s *Server) exportParquet(w http.ResponseWriter, r *http.Request) {
-	ctx, p := r.Context(), principal(r.Context())
-	instID, dsID := r.PathValue("id"), r.URL.Query().Get("dataset_id")
-	if !validUUID(instID) || (dsID != "" && !validUUID(dsID)) {
-		s.fail(w, r, badRequest("instrument id and dataset_id must be uuids"))
-		return
-	}
-
-	started := false
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM instruments WHERE id = $1)`, instID).Scan(&exists); err != nil {
-			return err
-		}
-		if !exists {
-			return notFound("instrument")
-		}
-		rows, err := tx.Query(ctx, `
-			SELECT ts, dataset_id::text, channel, value, unit FROM instrument_readings
-			WHERE instrument_id = $1 AND ($2 = '' OR dataset_id = NULLIF($2, '')::uuid)
-			ORDER BY ts`, instID, dsID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		w.Header().Set("Content-Type", "application/vnd.apache.parquet")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+instID+`.parquet"`)
-		started = true
-		pw := export.NewParquetWriter(w)
-		batch := make([]export.ReadingRow, 0, 10_000)
-		for rows.Next() {
-			var (
-				ts                    time.Time
-				dataset, channel, unt string
-				value                 float64
-			)
-			if err := rows.Scan(&ts, &dataset, &channel, &value, &unt); err != nil {
-				return err
-			}
-			batch = append(batch, export.RowFrom(ts, instID, dataset, channel, value, unt))
-			if len(batch) == cap(batch) {
-				if err := pw.Write(batch); err != nil {
-					return err
-				}
-				batch = batch[:0]
-			}
-		}
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		if err := pw.Write(batch); err != nil {
-			return err
-		}
-		return pw.Close()
-	})
-	if err != nil {
-		if started {
-			// Headers are gone; the truncated file fails Parquet's footer check.
-			s.log.Error("parquet export aborted mid-stream", "instrument", instID, "err", err)
-			return
-		}
-		s.fail(w, r, err)
-	}
 }

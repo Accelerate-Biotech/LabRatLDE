@@ -3,7 +3,6 @@
 *.out
 coverage.*
 .env
-*.parquet
 *.ndjson.tmp
 .idea/
 .vscode/

@@ -66,8 +66,8 @@ func run() error {
 		Handler:           api.New(cfg, db, log).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
-		// No Read/WriteTimeout: instrument streams and Parquet exports are
-		// long-lived by design. Bound them at the proxy if you must.
+		// No Read/WriteTimeout: instrument streams are long-lived by
+		// design. Bound them at the proxy if you must.
 	}
 
 	errc := make(chan error, 1)

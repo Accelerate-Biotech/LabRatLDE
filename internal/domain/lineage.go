@@ -31,18 +31,6 @@ func (k NodeKind) Valid() bool {
 	return false
 }
 
-// ProvClass maps a kind onto the W3C PROV-O class it serialises as.
-func (k NodeKind) ProvClass() string {
-	switch k {
-	case KindRun, KindAnalysis:
-		return "prov:Activity"
-	case KindInstrument:
-		return "prov:SoftwareAgent"
-	default:
-		return "prov:Entity"
-	}
-}
-
 // Relation is the W3C PROV relation an edge asserts.
 //
 // Edges always point downstream, in the direction data flows: From is the

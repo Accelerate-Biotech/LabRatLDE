@@ -8,7 +8,6 @@ import (
 
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/audit"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/domain"
-	"github.com/Accelerate-Biotech/LabRatLDE/internal/export"
 )
 
 // insertNode creates a lineage node and audits it.
@@ -96,7 +95,6 @@ func (s *Server) createEdge(w http.ResponseWriter, r *http.Request) {
 // getLineage returns the provenance closure around a node.
 //
 //	?direction=upstream|downstream|both   (default upstream: "where did this come from?")
-//	?format=json|jsonld                    (jsonld = W3C PROV-O)
 func (s *Server) getLineage(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	id := r.PathValue("id")
@@ -175,13 +173,6 @@ func (s *Server) getLineage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query().Get("format") == "jsonld" {
-		w.Header().Set("Content-Type", "application/ld+json")
-		if err := export.ProvJSONLD(w, s.cfg.VocabIRI, g); err != nil {
-			s.log.Error("encode json-ld", "err", err)
-		}
-		return
-	}
 	writeJSON(w, http.StatusOK, struct {
 		Root  string        `json:"root"`
 		Nodes []domain.Node `json:"nodes"`

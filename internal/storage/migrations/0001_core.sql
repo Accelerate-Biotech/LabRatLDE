@@ -141,8 +141,7 @@ CREATE TABLE instruments (
 );
 
 -- Narrow, append-mostly fact table. Each streamed upload becomes a `dataset`
--- lineage node (dataset_id). For sustained high-rate instruments, partition
--- by month on ts and roll cold partitions out to Parquet in object storage.
+-- lineage node (dataset_id).
 CREATE TABLE instrument_readings (
     tenant_id     uuid NOT NULL,
     instrument_id uuid NOT NULL,
