@@ -13,9 +13,9 @@ LabRat: an open-source Laboratory Development Environment (LDE). API-first Go en
 | `internal/api/`, `ingest/`, `config/` | HTTP handlers, NDJSON instrument ingest, env config | |
 | `pkg/` | Small libraries other projects may import | |
 | `docs/audit-chain.md` | Normative audit digest spec | |
-| `specs/` | Specs that drive all new work (`SPEC-NNN-slug.md`) | Start from `specs/TEMPLATE.md` |
+| `specs/` | Specs that drive all new work (`SPEC-NNN-slug.md`) | Start from `specs/TEMPLATE.md`; `ROADMAP.md` reserves numbers and records design decisions |
 | `tools/verify_audit.py` | Independent chain verifier | Must share no code with the server |
-| `web/` | Frontend (planned) | UI stack not chosen yet: decide it in a spec first |
+| `web/` | Web UI (planned, core to the product) | Stack is decided in SPEC-005. Feature specs from Phase 1 on include their UI |
 
 ## Hard rules
 

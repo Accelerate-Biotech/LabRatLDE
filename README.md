@@ -206,7 +206,8 @@ liquid handlers, and whatever your automation cell emits next.
 
 **Design rules**
 
-1. **The API is the product.** The UI gets no endpoint the API doesn't have.
+1. **The UI is core; the API is its only door.** Scientists work in the web
+   UI, and it gets no endpoint the API doesn't have.
 2. **Invariants live in the database.** If it must never happen, a constraint
    or trigger forbids it, not an `if` statement in a handler.
 3. **One binary.** Migrations are embedded; the binary *is* the schema
@@ -339,7 +340,7 @@ planned | running | paused ──► aborted        (requires a reason)
 ├── pkg/frontmatter/              # Markdown + YAML frontmatter parser
 ├── tools/verify_audit.py         # standalone chain verifier (stdlib only)
 ├── docs/audit-chain.md           # normative digest spec + threat model
-├── specs/                        # EARS specs that drive all work (TEMPLATE.md, SPEC-001)
+├── specs/                        # EARS specs that drive all work (TEMPLATE.md, SPEC-001, ROADMAP.md)
 ├── .claude/agents/               # spec-writer, work-orchestrator, implementer
 ├── CLAUDE.md                     # conventions for humans and agents
 ├── examples/                     # sample protocol and instrument stream
@@ -367,7 +368,10 @@ honest stubs. Do not use for regulated work yet.
 | §11.200 signature re-authentication | 🔜 needs OIDC step-up |
 | External anchoring of chain heads (RFC 3161 / transparency log) | 🔜 roadmap |
 | Bulk data export formats and archival storage | ❓ architecture not decided; needs a spec |
-| Web UI (React + WASM) | 🔜 roadmap |
+| Web UI (core; stack decided in SPEC-005) | 🔜 roadmap |
+
+The phased plan, design decisions and reserved spec numbers are in
+[`specs/ROADMAP.md`](specs/ROADMAP.md).
 | Validation package (IQ/OQ templates, traceability matrix) | 🔜 roadmap |
 
 ---
