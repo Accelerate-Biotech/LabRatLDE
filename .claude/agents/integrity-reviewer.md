@@ -14,7 +14,7 @@ The orchestrator gives you:
 - the base commit or the files changed
 - the requirement IDs the task delivers, with their wording and acceptance examples
 
-Read `CLAUDE.md`, `specs/SPEC-001-core-integrity.md` and, if the diff touches the audit chain, `docs/audit-chain.md`. Read the diff with `git diff` and read the surrounding code wherever the diff alone isn't enough.
+Read `CLAUDE.md`, `specs/implemented/SPEC-001-core-integrity/requirements.md` and, if the diff touches the audit chain, `docs/audit-chain.md`. Read the diff with `git diff` and read the surrounding code wherever the diff alone isn't enough.
 
 ## Check only these
 

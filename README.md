@@ -340,9 +340,7 @@ planned | running | paused ──► aborted        (requires a reason)
 ├── pkg/frontmatter/              # Markdown + YAML frontmatter parser
 ├── tools/verify_audit.py         # standalone chain verifier (stdlib only)
 ├── docs/audit-chain.md           # normative digest spec + threat model
-├── specs/                        # EARS specs that drive all work (TEMPLATE.md, SPEC-001, ROADMAP.md)
-├── .claude/agents/               # spec-writer, work-orchestrator, implementer
-├── CLAUDE.md                     # conventions for humans and agents
+├── specs/                        # EARS specs that drive all work (TEMPLATE/, ROADMAP.md, implemented/)
 ├── examples/                     # sample protocol and instrument stream
 ├── web/                          # frontend (planned)
 ├── Dockerfile                    # multi-stage → distroless/static, nonroot
@@ -383,8 +381,8 @@ are all equally welcome. The best issues start with *"at the bench, I need
 to…"*.
 
 - **Specs first.** Every change traces to an EARS requirement in
-  [`specs/`](specs/). Start from [`specs/TEMPLATE.md`](specs/TEMPLATE.md);
-  [`SPEC-001`](specs/SPEC-001-core-integrity.md) records the invariants
+  [`specs/`](specs/). Start from [`specs/TEMPLATE/`](specs/TEMPLATE/);
+  [`SPEC-001`](specs/implemented/SPEC-001-core-integrity/requirements.md) records the invariants
   already enforced.
 - **Simplicity wins.** Standard library first, no speculative abstraction, new
   dependencies justified in a spec's Decision log.
