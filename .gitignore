@@ -7,5 +7,7 @@ coverage.*
 .idea/
 .vscode/
 .DS_Store
-.claude/worktrees/
-.claude/settings.local.json
+
+# Local Claude Code setup (agents, settings, worktrees) and project instructions
+.claude/
+CLAUDE.md
