@@ -37,6 +37,15 @@ Complexity is a cost. On every spec:
 - Mark `Test: yes` **only** for business-critical rules: audit chain integrity, electronic signatures and run lifecycle, lineage correctness, tenant isolation, and data integrity or chain of custody that could corrupt a scientific record or cause a compliance failure. Expect most requirements to be `Test: no`. Each `Test: yes` requirement needs at least one concrete Given/When/Then example in §5, with synthetic data (no real patient, donor or staff identifiers).
 - Put unresolved points in **Open questions**, not in requirements.
 
+## Self-check
+
+Before showing the draft, check it and fix anything that fails:
+- If `specs/ROADMAP.md` has a brief for this number, the spec covers that brief's scope and `Test` rules, or the Decision log says why not.
+- It doesn't contradict `SPEC-001`, the specs in **Depends on**, or the design decisions in `ROADMAP.md` §2.
+- From Phase 1 on (SPEC-006 and later), §7 UI is filled in (decision D7). The UI uses only public API endpoints.
+- Every `Test: yes` requirement has a §5 example, and no `Test: no` requirement does.
+- There are no more than about 12 requirements; otherwise, propose a split.
+
 ## Finishing
 
 1. Write the file to `specs/SPEC-NNN-short-slug.md` with status **Draft**.

@@ -78,9 +78,11 @@ Rules of thumb
 <!-- Only what this spec adds or changes: tables/columns (as a new migration), API endpoints (method, path, request, response, errors), audit actions emitted.
      Use plain tables or short JSON examples. -->
 
-## 7. UI notes (optional)
+## 7. UI (required from Phase 1)
 
-<!-- Screens or interactions touched. A short list or a rough sketch; no pixel specs. -->
+<!-- Required for every spec from Phase 1 on (ROADMAP decision D7); optional for Phase 0 engine-only specs.
+     Screens or interactions touched, as a short list or rough sketch; no pixel specs.
+     The UI calls only public API endpoints. Name any UI flow critical enough for a Playwright test. -->
 
 ## 8. Non-functional (optional)
 
