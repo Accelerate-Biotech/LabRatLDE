@@ -4,30 +4,30 @@
 |---|---|
 | **Owner** | Rob Bassett |
 | **Updated** | 2026-10-20 |
-| **Baseline** | `SPEC-001` (Implemented) at commit `76a7ff0` |
+| **Baseline** | [`SPEC-001`](implemented/SPEC-001-core-integrity/requirements.md) (Implemented) at commit `76a7ff0` |
 
-This is the plan for getting from the scaffold to a regulated pilot and beyond. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
+This is the plan for getting from the scaffold to a regulated pilot and beyond. Each spec is a folder holding `requirements.md`, `design.md` and `tasks.md` (template in `TEMPLATE/`); once implemented and verified it moves to `implemented/` with a `uat.md` user acceptance test plan. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
 
 | Spec | File | Status |
 |---|---|---|
-| SPEC-002 | [Sealing completeness](SPEC-002-sealing-completeness.md) | Implemented |
-| SPEC-003 | [Immutable protocol versions](SPEC-003-protocol-versions.md) | Draft |
-| SPEC-004 | [Validation package v1](SPEC-004-validation-package.md) | Draft |
-| SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell.md) | Draft |
-| SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles.md) | Draft |
-| SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets.md) | Draft |
-| SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures.md) | Draft |
-| SPEC-009 | [Schema registry and schema-driven forms](SPEC-009-schema-registry-and-forms.md) | Draft |
-| SPEC-010 | [Schema governance namespaces](SPEC-010-schema-governance.md) | Draft |
-| SPEC-011 | [Query and comparison](SPEC-011-query-and-comparison.md) | Draft |
-| SPEC-012 | [Raw file custody](SPEC-012-raw-file-custody.md) | Draft |
-| SPEC-013 | [Parser workers and ingest review](SPEC-013-parser-workers-and-ingest-review.md) | Draft |
-| SPEC-014 | [MCP server](SPEC-014-mcp-server.md) | Draft |
-| SPEC-015 | [Inventory and equipment status](SPEC-015-inventory-and-equipment-status.md) | Draft |
-| SPEC-016 | [Pre-flight checks v1](SPEC-016-preflight-checks.md) | Draft |
-| SPEC-017 | [Open exports](SPEC-017-open-exports.md) | Draft |
-| SPEC-018 | [Audit chain anchoring](SPEC-018-chain-anchoring.md) | Draft |
-| SPEC-019 | [CLI (optional)](SPEC-019-cli.md) | Draft |
+| SPEC-002 | [Sealing completeness](implemented/SPEC-002-sealing-completeness/requirements.md) | Implemented |
+| SPEC-003 | [Immutable protocol versions](SPEC-003-protocol-versions/requirements.md) | Draft |
+| SPEC-004 | [Validation package v1](SPEC-004-validation-package/requirements.md) | Draft |
+| SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | Draft |
+| SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |
+| SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
+| SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures/requirements.md) | Draft |
+| SPEC-009 | [Schema registry and schema-driven forms](SPEC-009-schema-registry-and-forms/requirements.md) | Draft |
+| SPEC-010 | [Schema governance namespaces](SPEC-010-schema-governance/requirements.md) | Draft |
+| SPEC-011 | [Query and comparison](SPEC-011-query-and-comparison/requirements.md) | Draft |
+| SPEC-012 | [Raw file custody](SPEC-012-raw-file-custody/requirements.md) | Draft |
+| SPEC-013 | [Parser workers and ingest review](SPEC-013-parser-workers-and-ingest-review/requirements.md) | Draft |
+| SPEC-014 | [MCP server](SPEC-014-mcp-server/requirements.md) | Draft |
+| SPEC-015 | [Inventory and equipment status](SPEC-015-inventory-and-equipment-status/requirements.md) | Draft |
+| SPEC-016 | [Pre-flight checks v1](SPEC-016-preflight-checks/requirements.md) | Draft |
+| SPEC-017 | [Open exports](SPEC-017-open-exports/requirements.md) | Draft |
+| SPEC-018 | [Audit chain anchoring](SPEC-018-chain-anchoring/requirements.md) | Draft |
+| SPEC-019 | [CLI (optional)](SPEC-019-cli/requirements.md) | Draft |
 
 **SQLSTATE registry** (custom codes raised by triggers): `LDE01` lineage cycle (SPEC-001), `LDE02` forged or non-extending audit event (SPEC-001), `LDE03` immutable/append-only record (SPEC-001, reused), `LDE04` sealed record (SPEC-002), `LDE05` role denied (SPEC-006), `LDE06` invalid schema reference (SPEC-009), `LDE07` signature rule violation (SPEC-008).
 
