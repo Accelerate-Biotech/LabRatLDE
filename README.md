@@ -361,7 +361,7 @@ honest stubs. Do not use for regulated work yet.
 |---|---|
 | Hash-chained audit ledger (Go + DB-enforced) | ✅ implemented; Go unit tests + Python cross-check; DB guarantees covered by `make test-integration` |
 | Lineage DAG, DB-enforced acyclicity | ✅ implemented |
-| Run state machine, sealed signed runs | ✅ implemented |
+| Run state machine, sealed signed runs | ✅ implemented; signed and aborted runs seal their node and generated datasets in the DB (SPEC-002) |
 | NDJSON instrument ingest | ✅ implemented |
 | Row-Level Security tenant isolation | ✅ implemented; covered by `make test-integration` |
 | **Authentication** | ⚠️ dev headers only. OIDC required before any real use (`LDE_ENV=prod` refuses to serve without it) |

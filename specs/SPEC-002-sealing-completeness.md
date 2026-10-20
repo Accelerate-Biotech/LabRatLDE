@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved |
+| **Status** | Implemented |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-18 |
+| **Created / Updated** | 2026-10-18 / 2026-10-20 |
 | **Regulatory refs** | 21 CFR 11.10(c), 11.10(e), 11.70 |
 | **Depends on** | `SPEC-001` |
 
@@ -22,7 +22,7 @@ When a run is signed, the scaffold freezes the `runs` row and nothing else. The 
 
 **Out of scope**
 - Correcting a sealed record. That arrives through reviewed change sets (SPEC-007, SPEC-008).
-- Sealing aborted or failed runs (see open question 1).
+- Sealing failed runs before they are signed (see open question 1; aborted runs do seal).
 - Changing the definition of "signed". SPEC-008 widens the sealed predicate to "has at least one valid signature" and supersedes R01's trigger condition.
 
 ## 3. Simplicity budget
@@ -34,7 +34,7 @@ When a run is signed, the scaffold freezes the `runs` row and nothing else. The 
 
 | ID | Requirement | Test | Source |
 |---|---|---|---|
-| SPEC-002-R01 | The database shall treat a lineage node as sealed when it is the node of a run in state `signed`, or is the target of a `wasGeneratedBy` edge from such a run node. | yes | 11.10(c) |
+| SPEC-002-R01 | The database shall treat a lineage node as sealed when it is the node of a run in state `signed` or `aborted`, or is the target of a `wasGeneratedBy` edge from such a run node. | yes | 11.10(c) |
 | SPEC-002-R02 | If a lineage edge is inserted whose `to_id` is a sealed node, then the database shall reject it with SQLSTATE `LDE04`. | yes | 11.10(c), 11.70 |
 | SPEC-002-R03 | If a lineage edge with relation `wasGeneratedBy` is inserted whose `from_id` is a sealed run node, then the database shall reject it with SQLSTATE `LDE04`. | yes | 11.10(c) |
 | SPEC-002-R04 | The database shall continue to accept edges whose `from_id` is a sealed node with relations other than `wasGeneratedBy`, so later work can use sealed outputs. | yes | data integrity |
@@ -51,6 +51,7 @@ Shared fixture: sample `S` →used→ run `R` →wasGeneratedBy→ dataset `D` (
 **SPEC-002-R01**
 - Given the fixture, `lineage_node_sealed` is true for `R` and `D`, and false for `S` and `I`.
 - Given the same fixture but `R` only `completed`, it is false for `R` and `D`.
+- Given the same fixture but `R` `aborted`, it is true for `R` and `D`.
 
 **SPEC-002-R02**: inserting reagent `X` →used→ `R` fails with `LDE04`. Inserting new node `Z` →wasDerivedFrom→ `D` (that is, `to_id = D`) fails with `LDE04`.
 
@@ -85,3 +86,7 @@ Shared fixture: sample `S` →used→ run `R` →wasGeneratedBy→ dataset `D` (
 |---|---|---|---|
 | 2026-10-18 | Sealed set = run node + datasets it generated; downstream use stays allowed | Sealing must protect what was signed without stopping science from building on it | Sealing the full downstream closure (blocks all reuse) |
 | 2026-10-18 | Revoke unused `UPDATE` grants instead of auditing them by trigger | No endpoint needs them; SPEC-007 re-grants column-level `UPDATE` with revision triggers | Audit triggers on every table now |
+| 2026-10-20 | `aborted` runs seal immediately (R01) | Answer to open question 1 | Leaving aborted runs open |
+| 2026-10-20 | R07 compares the dataset node's `xmin` with `pg_current_xact_id()` | No extra state to keep in sync. Fails closed if the node was created in a savepoint, which ingest never does | Transaction-local set of created datasets |
+| 2026-10-20 | `instrument_readings_sealed` is an `AFTER INSERT ... FOR EACH STATEMENT` trigger with a transition table, not a `BEFORE` row trigger | One check per dataset per 5000-row ingest batch instead of one per reading; the rejected statement still rolls back whole | Per-row `BEFORE` trigger |
+| 2026-10-20 | `lineage_edges_sealed` takes `FOR SHARE` on the runs whose seal an edge depends on | Without it, an edge and a concurrent sign could both commit under READ COMMITTED, leaving a signed run with a new input or output | Relying on the API's `FOR UPDATE` in `transitionRun` (not a database invariant) |

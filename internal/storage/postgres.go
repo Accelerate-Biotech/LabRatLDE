@@ -21,6 +21,7 @@ const (
 	CodeLineageCycle  = "LDE01"
 	CodeAuditLink     = "LDE02"
 	CodeAppendOnly    = "LDE03"
+	CodeSealed        = "LDE04"
 	codeUniqueViolate = "23505"
 	codeFKViolation   = "23503"
 )
@@ -83,7 +84,7 @@ func ErrorCode(err error) string {
 // IsConflict reports constraint failures a client can fix by changing input.
 func IsConflict(err error) bool {
 	switch ErrorCode(err) {
-	case CodeLineageCycle, codeUniqueViolate:
+	case CodeLineageCycle, CodeSealed, codeUniqueViolate:
 		return true
 	}
 	return false

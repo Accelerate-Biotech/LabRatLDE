@@ -10,7 +10,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 
 | Spec | File | Status |
 |---|---|---|
-| SPEC-002 | [Sealing completeness](SPEC-002-sealing-completeness.md) | Draft |
+| SPEC-002 | [Sealing completeness](SPEC-002-sealing-completeness.md) | Implemented |
 | SPEC-003 | [Immutable protocol versions](SPEC-003-protocol-versions.md) | Draft |
 | SPEC-004 | [Validation package v1](SPEC-004-validation-package.md) | Draft |
 | SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell.md) | Draft |
