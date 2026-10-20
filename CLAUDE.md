@@ -71,4 +71,5 @@ gofmt -l . && go vet ./...  # must be clean
 |---|---|---|
 | `spec-writer` | opus | Interviews the user and writes a new spec from the template. Run it as the main session: `claude --agent spec-writer` |
 | `work-orchestrator` | sonnet | Splits an Approved spec into small tasks and hands them to implementers: `claude --agent work-orchestrator`, or ask for it by name |
-| `implementer` | haiku | Carries out one small, fully specified task. Dispatched by the orchestrator |
+| `implementer` | haiku | Carries out one small, fully specified task. Dispatched by the orchestrator, on sonnet for trigger/RLS/grant work |
+| `integrity-reviewer` | opus | Read-only check of a task's diff against the hard rules and SPEC-001. Dispatched by the orchestrator for storage, audit, signature and sealing tasks |
