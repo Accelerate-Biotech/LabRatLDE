@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
 | **Created / Updated** | 2026-10-18 / 2026-10-18 |
 | **Regulatory refs** | 21 CFR 11.10(c), 11.10(e), 11.70 |
@@ -77,7 +77,7 @@ Shared fixture: sample `S` →used→ run `R` →wasGeneratedBy→ dataset `D` (
 
 | # | Question | Owner | Answer (date) |
 |---|---|---|---|
-| 1 | Should `aborted` and `failed` runs also seal once they are terminal or signed? Recommendation: `aborted` seals immediately; `failed` seals when signed (already covered). | Rob Bassett | |
+| 1 | Should `aborted` and `failed` runs also seal once they are terminal or signed? Recommendation: `aborted` seals immediately; `failed` seals when signed (already covered). | Rob Bassett | Go with recommendation (20/10/2026) |
 
 ## 10. Decision log
 
