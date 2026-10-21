@@ -60,7 +60,7 @@ type Run struct {
 	TenantID          string          `json:"tenant_id"`
 	ExperimentID      string          `json:"experiment_id"`
 	ProtocolVersionID string          `json:"protocol_version_id"` // pinned at creation, never changed
-	NodeID            string          `json:"node_id"` // this run's vertex in the lineage graph
+	NodeID            string          `json:"node_id"`             // this run's vertex in the lineage graph
 	State             RunState        `json:"state"`
 	Params            json.RawMessage `json:"params"`
 	StartedAt         *time.Time      `json:"started_at,omitempty"`
