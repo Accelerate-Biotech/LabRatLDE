@@ -190,8 +190,9 @@ func newSealFixture(t *testing.T, db *storage.DB, state string) sealFixture {
 			VALUES ($1, 'exp', 'exp', 'it@lab') RETURNING id`, f.tenant).Scan(&expID); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(ctx, `INSERT INTO runs (tenant_id, experiment_id, node_id, created_by)
-			VALUES ($1, $2, $3, 'it@lab') RETURNING id`, f.tenant, expID, f.r).Scan(&f.runID); err != nil {
+		pvID, _ := newProtocolVersion(t, tx, f.tenant, expID, 1, "# p\n")
+		if err := tx.QueryRow(ctx, `INSERT INTO runs (tenant_id, experiment_id, node_id, protocol_version_id, created_by)
+			VALUES ($1, $2, $3, $4, 'it@lab') RETURNING id`, f.tenant, expID, f.r, pvID).Scan(&f.runID); err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, `INSERT INTO instruments (tenant_id, node_id, name, kind)
@@ -461,7 +462,7 @@ func TestProtocolVersionsAreAppendOnly(t *testing.T) {
 		_, err = db.Pool.Exec(ctx, stmt, tenant)
 		wantCode(t, "owner: "+stmt, err, storage.CodeAppendOnly)
 	}
-	_, err = db.Pool.Exec(ctx, `TRUNCATE protocol_versions`)
+	_, err = db.Pool.Exec(ctx, `TRUNCATE protocol_versions, runs`) // runs references it, so a bare TRUNCATE hits 0A000 first
 	wantCode(t, "owner: TRUNCATE", err, storage.CodeAppendOnly)
 }
 

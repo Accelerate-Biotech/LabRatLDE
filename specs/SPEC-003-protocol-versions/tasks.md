@@ -11,13 +11,13 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
   - Files: `internal/storage/integration_test.go`
   - Do: add a helper `newProtocolVersion(t, tx, tenant, expID string, version int, md string) (id, nodeID string)`. It inserts a `protocol` lineage node with the existing `insertNode` constant, then `INSERT INTO protocol_versions (tenant_id, experiment_id, version, protocol_md, node_id, created_by) VALUES (…, 'it@lab') RETURNING id`. Then add one test function per rule, each with a `// SPEC-003-Rnn` comment, built from the acceptance examples in `requirements.md` §4:
     - `TestProtocolVersionHash` (R01): `"# A\n"` gives `sha256` = `sha256.Sum256([]byte("# A\n"))`. An INSERT that lists the `sha256` column returns an error.
-    - `TestProtocolVersionsAreAppendOnly` (R02): inside `db.WithTenant` (as `lde_app`), `UPDATE` and `DELETE` fail with `42501` (no grant, as in `TestAppRoleCannotUpdateUnusedTables`); on `db.Pool` (as the owner), `UPDATE`, `DELETE` and `TRUNCATE protocol_versions` each fail with `LDE03`. Use `wantCode`.
+    - `TestProtocolVersionsAreAppendOnly` (R02): inside `db.WithTenant` (as `lde_app`), `UPDATE` and `DELETE` fail with `42501` (no grant, as in `TestAppRoleCannotUpdateUnusedTables`); on `db.Pool` (as the owner), `UPDATE`, `DELETE` and `TRUNCATE protocol_versions, runs` each fail with `LDE03` (a bare TRUNCATE hits the runs FK first, `0A000`). Use `wantCode`.
     - `TestProtocolVersionsAreGapless` (R03): with v1 and v2 on `E`, v4 fails and v3 succeeds. v1 on a new experiment `F` succeeds.
     - `TestRunProtocolMustBelongToExperiment` (R04): a run on `E` with `PF1` fails with SQLSTATE `23503`.
     - `TestRunProtocolPinIsImmutable` (R11): with a `planned` run on `E` pinned to `PE1`, `UPDATE runs SET protocol_version_id = PE2` fails with `LDE03` as `lde_app` and as the owner. `UPDATE runs SET state = 'running'` succeeds.
   - Verify: `go vet ./...` is clean. `make test-integration` fails only on these five tests (the table doesn't exist yet).
   - Integrity: yes
-- [ ] 1.2 Migration `0005_protocol_versions.sql`, plus the SPEC-002 fixture
+- [x] 1.2 Migration `0005_protocol_versions.sql`, plus the SPEC-002 fixture
   - Requirements: SPEC-003-R01, R02, R03, R04, R09, R11, R12
   - Files: `internal/storage/migrations/0005_protocol_versions.sql` (new), `internal/storage/integration_test.go` (fixture only)
   - Do: write the migration with the ten steps in `design.md` §2, in that order, using the exact names given there (`protocol_sha256`, `protocol_versions_reject_mutation`, `protocol_versions_append_only`, `protocol_versions_no_truncate`, `protocol_versions_gapless`, `runs_reject_repin`, `runs_protocol_pinned`, `protocol_versions_meta_gin`). Add a header comment in the style of `0004_sealing.sql` and a `-- SPEC-003-Rnn` comment above each object. In `newSealFixture`, after inserting the experiment, call `newProtocolVersion(t, tx, f.tenant, expID, 1, "# p\n")`. Pass the returned id as `protocol_version_id` in the runs INSERT. Change nothing else in existing tests.

@@ -53,7 +53,7 @@ A protocol (Markdown + YAML frontmatter) is stored once on its experiment, and a
 
 **SPEC-003-R01**: inserting a version with `protocol_md` = `"# A\n"` yields `sha256` = SHA-256 of bytes `23 20 41 0a`. An insert that names `sha256` explicitly fails.
 
-**SPEC-003-R02**: given version 1 of experiment `E`, `UPDATE protocol_versions SET protocol_md = 'x'`, `DELETE` fail with `42501` as `lde_app`; `UPDATE`, `DELETE` and `TRUNCATE` each fail with `LDE03` as the table owner.
+**SPEC-003-R02**: given version 1 of experiment `E`, `UPDATE protocol_versions SET protocol_md = 'x'`, `DELETE` fail with `42501` as `lde_app`; `UPDATE`, `DELETE` and `TRUNCATE protocol_versions, runs` (a bare `TRUNCATE` is stopped earlier by the `runs` foreign key, `0A000`) each fail with `LDE03` as the table owner.
 
 **SPEC-003-R03**: given `E` with versions 1 and 2, inserting version 4 fails and inserting version 3 succeeds. Inserting version 1 for a new experiment `F` succeeds.
 
