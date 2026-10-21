@@ -63,7 +63,7 @@ How this fits SPEC-002 sealing: the protocol node only ever gains `used` edges *
 | `POST` | `/v1/experiments/{id}/protocol-versions` | `{protocol_md}` → `201` with `{id, experiment_id, version, sha256, node_id, created_by, created_at}`. Empty → `400`; bad frontmatter → `400`; unknown experiment → `404`; same text as highest version → `409` (R13) |
 | `GET` | `/v1/experiments/{id}/protocol-versions` | `[{id, version, sha256, node_id, created_by, created_at}]` ordered by `version` |
 | `GET` | `/v1/protocol-versions/{id}` | full row incl. `protocol_md`, `protocol_meta` |
-| `POST` | `/v1/runs` | new optional `protocol_version_id`; omitted → the experiment's highest version (R05). A version from another experiment fails the FK → `422` |
+| `POST` | `/v1/runs` | new optional `protocol_version_id`; omitted → the experiment's highest version (R05). The lookup filters by experiment, so a version from another experiment (or an experiment with no versions) answers `404`; the composite FK still rejects it in the database (R04) |
 
 `sha256` is always serialised as lowercase hex (`encode(sha256, 'hex')` in SQL).
 

@@ -61,7 +61,7 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
     - Read the run's `run.created` event with `db.WithTenant` and `SELECT payload_json FROM audit_events WHERE action = 'run.created' AND entity_id = $1`. Check `protocol_version_id` = `PE1`, `protocol_version` = 1 and `protocol_sha256` = the experiment's `protocol_sha256`.
   - Verify: `make test-integration` fails only on this test.
   - Integrity: yes
-- [ ] 2.4 Runs pin a protocol version
+- [x] 2.4 Runs pin a protocol version
   - Requirements: SPEC-003-R04, SPEC-003-R05, SPEC-003-R06, SPEC-003-R07
   - Files: `internal/domain/run.go`, `internal/api/runs.go`
   - Do:

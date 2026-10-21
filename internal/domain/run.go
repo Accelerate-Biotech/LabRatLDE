@@ -56,16 +56,17 @@ func (s RunState) CanTransition(next RunState) error {
 
 // Run is a single execution of an experiment protocol.
 type Run struct {
-	ID           string          `json:"id"`
-	TenantID     string          `json:"tenant_id"`
-	ExperimentID string          `json:"experiment_id"`
-	NodeID       string          `json:"node_id"` // this run's vertex in the lineage graph
-	State        RunState        `json:"state"`
-	Params       json.RawMessage `json:"params"`
-	StartedAt    *time.Time      `json:"started_at,omitempty"`
-	FinishedAt   *time.Time      `json:"finished_at,omitempty"`
-	CreatedBy    string          `json:"created_by"`
-	CreatedAt    time.Time       `json:"created_at"`
+	ID                string          `json:"id"`
+	TenantID          string          `json:"tenant_id"`
+	ExperimentID      string          `json:"experiment_id"`
+	ProtocolVersionID string          `json:"protocol_version_id"` // pinned at creation, never changed
+	NodeID            string          `json:"node_id"` // this run's vertex in the lineage graph
+	State             RunState        `json:"state"`
+	Params            json.RawMessage `json:"params"`
+	StartedAt         *time.Time      `json:"started_at,omitempty"`
+	FinishedAt        *time.Time      `json:"finished_at,omitempty"`
+	CreatedBy         string          `json:"created_by"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 // Apply moves the run to next, stamping lifecycle timestamps. Aborting and
