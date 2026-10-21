@@ -42,7 +42,7 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
       - `getProtocolVersion` (`GET /v1/protocol-versions/{id}`): the full row.
     - Register the three routes in `Handler()` after the experiment routes.
   - Verify: `gofmt -l . && go vet ./...` clean; `make test-integration` passes. Manually: POST v2 → `201` `version: 2`; POST the same text again → `409`; POST `""` → `400`.
-- [ ] 2.2 Experiments read and write versions
+- [x] 2.2 Experiments read and write versions
   - Requirements: SPEC-003-R08, SPEC-003-R10, SPEC-003-R12
   - Files: `internal/api/experiments.go`
   - Do:
@@ -51,7 +51,7 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
     - `getExperiment`: select the same fields with a `JOIN LATERAL (SELECT … FROM protocol_versions v WHERE v.tenant_id = e.tenant_id AND v.experiment_id = e.id ORDER BY version DESC LIMIT 1)`.
     - Remove the now-unused `crypto/sha256` and `encoding/hex` imports if nothing else uses them.
   - Verify: `gofmt -l . && go vet ./...` clean; `make test-integration` passes. The README `curl` example still creates an experiment, and its GET shows `protocol_version: 1`. Finish the 1.2 backfill check now.
-- [ ] 2.3 Test: run creation pins, links and audits its protocol (SPEC-003-R06, R07)
+- [x] 2.3 Test: run creation pins, links and audits its protocol (SPEC-003-R06, R07)
   - Requirements: SPEC-003-R06, SPEC-003-R07
   - Files: `internal/api/integration_test.go` (new, `package api_test`)
   - Do: this is the first API-level test. Skip it unless `LDE_TEST_DATABASE_URL` is set. Open and migrate the DB like `openTestDB` in `internal/storage/integration_test.go` (copy the ~15 lines; don't export a shared helper). Create a tenant with `db.EnsureTenant`. Serve `api.New(config.Config{Env: "dev"}, db, slog.New(slog.NewTextHandler(io.Discard, nil))).Handler()` with `httptest.NewServer`. Send `X-LDE-Tenant` / `X-LDE-Actor` headers. One test, `TestRunPinsProtocolVersion`, with comment `// SPEC-003-R06, SPEC-003-R07`:
