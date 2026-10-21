@@ -76,7 +76,7 @@ Shared helper in `protocols.go`:
 func addProtocolVersion(ctx context.Context, tx pgx.Tx, p Principal, expID, slug, md string) (protocolVersion, error)
 ```
 
-It computes the next version in the INSERT itself: `(SELECT COALESCE(max(version), 0) + 1 …)`. A concurrent add hits the unique constraint, and `fail` already maps that to `409`.
+It reads the highest version (number and hash, for the R13 check) and inserts the next number. No lock: a concurrent add hits the unique constraint, and `fail` already maps that to `409`.
 
 ## 3. UI
 
@@ -92,4 +92,5 @@ Delivered with SPEC-005: the experiment view shows the current version and a ver
 | 2026-10-21 | Experiments are backfilled to v1 with audit events appended from SQL | Every mutation is audited, including migration ones | Requiring empty tables |
 | 2026-10-21 | Drop `experiments.protocol_md` / `protocol_meta` in the same migration | One source of truth | Keeping them frozen (meaning differs for old vs new rows) |
 | 2026-10-21 | A run's pin is frozen by trigger | Stops an unaudited re-point through `lde_app`'s UPDATE grant on `runs` | Audited re-pin endpoint while `planned` |
+| 2026-10-21 | The backfill's protocol lineage node is audited by its `protocol.version_created` event (`node_id` in the payload), with no separate `lineage.node_created` | One event per backfilled version; the node exists only as part of that version | Emitting both events from SQL (more hand-built canonical payloads) |
 | 2026-10-21 | First API-level integration test (`internal/api/integration_test.go`) | R06 and R07 are `Test: yes` but enforced in Go, not the DB | Marking them `Test: no` |

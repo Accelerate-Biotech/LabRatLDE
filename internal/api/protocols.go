@@ -43,10 +43,8 @@ func addProtocolVersion(ctx context.Context, tx pgx.Tx, p Principal, expID, slug
 		return protocolVersion{}, badRequest("protocol_md frontmatter is not JSON-representable: %v", err)
 	}
 
-	// Serialise versions of one experiment so the next number read below can't go stale.
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('lde.protocol:' || $1, 0))`, expID); err != nil {
-		return protocolVersion{}, err
-	}
+	// A concurrent add can make next stale; it then collides on
+	// UNIQUE (tenant_id, experiment_id, version) and fail answers 409.
 	var last protocolVersion
 	err = tx.QueryRow(ctx, `
 		SELECT version, encode(sha256, 'hex') FROM protocol_versions
