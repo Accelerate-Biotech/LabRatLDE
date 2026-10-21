@@ -26,7 +26,7 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
 
 ## Phase 2: API
 
-- [ ] 2.1 Protocol version endpoints
+- [x] 2.1 Protocol version endpoints
   - Requirements: SPEC-003-R08, SPEC-003-R12, SPEC-003-R13
   - Files: `internal/api/protocols.go` (new), `internal/api/server.go` (routes only)
   - Do:
