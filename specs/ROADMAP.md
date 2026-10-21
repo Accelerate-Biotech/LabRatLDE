@@ -11,7 +11,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | Spec | File | Status |
 |---|---|---|
 | SPEC-002 | [Sealing completeness](implemented/SPEC-002-sealing-completeness/requirements.md) | Implemented |
-| SPEC-003 | [Immutable protocol versions](SPEC-003-protocol-versions/requirements.md) | Draft |
+| SPEC-003 | [Immutable protocol versions](SPEC-003-protocol-versions/requirements.md) | Approved |
 | SPEC-004 | [Validation package v1](SPEC-004-validation-package/requirements.md) | Draft |
 | SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | Draft |
 | SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |

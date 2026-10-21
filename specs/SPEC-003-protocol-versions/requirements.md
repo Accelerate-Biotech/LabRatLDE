@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
 | **Created / Updated** | 2026-10-18 / 2026-10-21 |
 | **Regulatory refs** | 21 CFR 11.10(e), 11.10(f), 11.10(k)(2) |
