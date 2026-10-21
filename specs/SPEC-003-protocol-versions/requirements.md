@@ -36,7 +36,7 @@ A protocol (Markdown + YAML frontmatter) is stored once on its experiment, and a
 | ID | Requirement | Test | Source |
 |---|---|---|---|
 | SPEC-003-R01 | The database shall compute each protocol version's `sha256` from the UTF-8 bytes of its `protocol_md`, and no caller shall be able to supply it. | yes | 11.10(e) |
-| SPEC-003-R02 | If any role attempts to update, delete or truncate protocol versions, then the database shall reject the statement with SQLSTATE `LDE03`. | yes | 11.10(e) |
+| SPEC-003-R02 | If any role attempts to update, delete or truncate protocol versions, then the database shall reject the statement: `lde_app` holds no such privilege (SQLSTATE `42501`), and for any role that does, including the owner, a trigger raises `LDE03`. | yes | 11.10(e) |
 | SPEC-003-R03 | If a protocol version is inserted whose number is not the experiment's highest version + 1 (or 1 for the first), then the database shall reject it. | yes | 11.10(f) |
 | SPEC-003-R04 | If a run references a protocol version that belongs to a different experiment, then the database shall reject it. | yes | data integrity |
 | SPEC-003-R05 | When a run is created without a `protocol_version_id`, the run API shall pin the experiment's highest protocol version. | no | usability |
@@ -53,7 +53,7 @@ A protocol (Markdown + YAML frontmatter) is stored once on its experiment, and a
 
 **SPEC-003-R01**: inserting a version with `protocol_md` = `"# A\n"` yields `sha256` = SHA-256 of bytes `23 20 41 0a`. An insert that names `sha256` explicitly fails.
 
-**SPEC-003-R02**: given version 1 of experiment `E`, `UPDATE protocol_versions SET protocol_md = 'x'`, `DELETE` and `TRUNCATE` each fail with `LDE03`, including as the table owner.
+**SPEC-003-R02**: given version 1 of experiment `E`, `UPDATE protocol_versions SET protocol_md = 'x'`, `DELETE` fail with `42501` as `lde_app`; `UPDATE`, `DELETE` and `TRUNCATE` each fail with `LDE03` as the table owner.
 
 **SPEC-003-R03**: given `E` with versions 1 and 2, inserting version 4 fails and inserting version 3 succeeds. Inserting version 1 for a new experiment `F` succeeds.
 

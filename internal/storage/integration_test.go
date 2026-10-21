@@ -1,8 +1,10 @@
 package storage_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log/slog"
@@ -351,4 +353,200 @@ func TestAppRoleCannotUpdateUnusedTables(t *testing.T) {
 		err := db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, tc.stmt); return err })
 		wantCode(t, tc.stmt, err, tc.want)
 	}
+}
+
+// newExperiment takes tenant and slug; the title is the slug.
+func newExperiment(t *testing.T, tx pgx.Tx, tenant, slug string) string {
+	t.Helper()
+	var id string
+	if err := tx.QueryRow(context.Background(), `INSERT INTO experiments (tenant_id, slug, title, created_by)
+		VALUES ($1, $2, $2, 'it@lab') RETURNING id`, tenant, slug).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// insertProtocolVersion takes tenant, experiment, version and protocol text.
+// It creates the protocol's lineage node and returns the version and node ids.
+func insertProtocolVersion(tx pgx.Tx, tenant, expID string, version int, md string) (id, nodeID string, err error) {
+	ctx := context.Background()
+	if err := tx.QueryRow(ctx, insertNode, tenant, "protocol").Scan(&nodeID); err != nil {
+		return "", "", err
+	}
+	err = tx.QueryRow(ctx, `INSERT INTO protocol_versions (tenant_id, experiment_id, version, protocol_md, node_id, created_by)
+		VALUES ($1, $2, $3, $4, $5, 'it@lab') RETURNING id`, tenant, expID, version, md, nodeID).Scan(&id)
+	return id, nodeID, err
+}
+
+func newProtocolVersion(t *testing.T, tx pgx.Tx, tenant, expID string, version int, md string) (id, nodeID string) {
+	t.Helper()
+	id, nodeID, err := insertProtocolVersion(tx, tenant, expID, version, md)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id, nodeID
+}
+
+// insertRun takes tenant, experiment and the pinned protocol version.
+func insertRun(tx pgx.Tx, tenant, expID, protocolVersionID string) (runID string, err error) {
+	ctx := context.Background()
+	var nodeID string
+	if err := tx.QueryRow(ctx, insertNode, tenant, "run").Scan(&nodeID); err != nil {
+		return "", err
+	}
+	err = tx.QueryRow(ctx, `INSERT INTO runs (tenant_id, experiment_id, node_id, protocol_version_id, created_by)
+		VALUES ($1, $2, $3, $4, 'it@lab') RETURNING id`, tenant, expID, nodeID, protocolVersionID).Scan(&runID)
+	return runID, err
+}
+
+// SPEC-003-R01
+func TestProtocolVersionHash(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var id string
+	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "hash")
+		id, _ = newProtocolVersion(t, tx, tenant, exp, 1, "# A\n")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []byte
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT sha256 FROM protocol_versions WHERE id = $1`, id).Scan(&got)
+	})
+	want := sha256.Sum256([]byte("# A\n"))
+	if err != nil || !bytes.Equal(got, want[:]) {
+		t.Fatalf("sha256 = %x, want %x (err %v)", got, want, err)
+	}
+	// The hash is computed by the database, so a supplied value is refused.
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "hash-forged")
+		var node string
+		if err := tx.QueryRow(ctx, insertNode, tenant, "protocol").Scan(&node); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO protocol_versions (tenant_id, experiment_id, version, protocol_md, node_id, created_by, sha256)
+			VALUES ($1, $2, 1, 'x', $3, 'it@lab', '\x00'::bytea)`, tenant, exp, node)
+		return err
+	})
+	if err == nil {
+		t.Error("INSERT with an explicit sha256 succeeded")
+	}
+}
+
+// SPEC-003-R02
+func TestProtocolVersionsAreAppendOnly(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "append")
+		newProtocolVersion(t, tx, tenant, exp, 1, "# v1")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []string{
+		`UPDATE protocol_versions SET protocol_md = 'x' WHERE tenant_id = $1`,
+		`DELETE FROM protocol_versions WHERE tenant_id = $1`,
+	} {
+		// A failing statement aborts its transaction, so each gets a fresh one.
+		err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, stmt, tenant); return err })
+		wantCode(t, "app role: "+stmt, err, "42501") // no grant for lde_app
+		// Even the owner, bypassing WithTenant, is stopped by the triggers.
+		_, err = db.Pool.Exec(ctx, stmt, tenant)
+		wantCode(t, "owner: "+stmt, err, storage.CodeAppendOnly)
+	}
+	_, err = db.Pool.Exec(ctx, `TRUNCATE protocol_versions`)
+	wantCode(t, "owner: TRUNCATE", err, storage.CodeAppendOnly)
+}
+
+// SPEC-003-R03
+func TestProtocolVersionsAreGapless(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var e, f string
+	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		e = newExperiment(t, tx, tenant, "gapless-e")
+		newProtocolVersion(t, tx, tenant, e, 1, "v1")
+		newProtocolVersion(t, tx, tenant, e, 2, "v2")
+		f = newExperiment(t, tx, tenant, "gapless-f")
+		newProtocolVersion(t, tx, tenant, f, 1, "v1")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, _, err := insertProtocolVersion(tx, tenant, e, 4, "v4")
+		return err
+	})
+	wantCode(t, "version 4 after 2 skips 3", err, "23514")
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, _, err := insertProtocolVersion(tx, tenant, e, 3, "v3")
+		return err
+	})
+	wantCode(t, "version 3 after 2", err, "")
+}
+
+// SPEC-003-R04
+func TestRunProtocolMustBelongToExperiment(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var e, pe1, pf1 string
+	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		e = newExperiment(t, tx, tenant, "pin-e")
+		pe1, _ = newProtocolVersion(t, tx, tenant, e, 1, "pe1")
+		f := newExperiment(t, tx, tenant, "pin-f")
+		pf1, _ = newProtocolVersion(t, tx, tenant, f, 1, "pf1")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, err := insertRun(tx, tenant, e, pf1)
+		return err
+	})
+	wantCode(t, "run of E pinned to protocol of F", err, "23503")
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, err := insertRun(tx, tenant, e, pe1)
+		return err
+	})
+	wantCode(t, "run of E pinned to protocol of E", err, "")
+}
+
+// SPEC-003-R11
+func TestRunProtocolPinIsImmutable(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var runID, pe2 string
+	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		e := newExperiment(t, tx, tenant, "immutable")
+		pe1, _ := newProtocolVersion(t, tx, tenant, e, 1, "v1")
+		pe2, _ = newProtocolVersion(t, tx, tenant, e, 2, "v2")
+		var err error
+		runID, err = insertRun(tx, tenant, e, pe1)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const repin = `UPDATE runs SET protocol_version_id = $2 WHERE id = $1`
+	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, repin, runID, pe2)
+		return err
+	})
+	wantCode(t, "app role re-pins planned run", err, storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, repin, runID, pe2)
+	wantCode(t, "owner re-pins planned run", err, storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, `UPDATE runs SET state = 'running' WHERE id = $1`, runID)
+	wantCode(t, "owner starts run without touching the pin", err, "")
 }

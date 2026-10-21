@@ -6,12 +6,12 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
 
 ## Phase 1: Database
 
-- [ ] 1.1 Test: protocol version rules in the database (SPEC-003-R01, R02, R03, R04, R11)
+- [x] 1.1 Test: protocol version rules in the database (SPEC-003-R01, R02, R03, R04, R11)
   - Requirements: SPEC-003-R01, SPEC-003-R02, SPEC-003-R03, SPEC-003-R04, SPEC-003-R11
   - Files: `internal/storage/integration_test.go`
   - Do: add a helper `newProtocolVersion(t, tx, tenant, expID string, version int, md string) (id, nodeID string)`. It inserts a `protocol` lineage node with the existing `insertNode` constant, then `INSERT INTO protocol_versions (tenant_id, experiment_id, version, protocol_md, node_id, created_by) VALUES (…, 'it@lab') RETURNING id`. Then add one test function per rule, each with a `// SPEC-003-Rnn` comment, built from the acceptance examples in `requirements.md` §4:
     - `TestProtocolVersionHash` (R01): `"# A\n"` gives `sha256` = `sha256.Sum256([]byte("# A\n"))`. An INSERT that lists the `sha256` column returns an error.
-    - `TestProtocolVersionsAreAppendOnly` (R02): `UPDATE`, `DELETE` and `TRUNCATE protocol_versions` each fail with `LDE03`, both inside `db.WithTenant` (as `lde_app`) and on `db.Pool` (as the owner). Run `TRUNCATE` only on `db.Pool`, since `lde_app` has no TRUNCATE grant. Use `wantCode`.
+    - `TestProtocolVersionsAreAppendOnly` (R02): inside `db.WithTenant` (as `lde_app`), `UPDATE` and `DELETE` fail with `42501` (no grant, as in `TestAppRoleCannotUpdateUnusedTables`); on `db.Pool` (as the owner), `UPDATE`, `DELETE` and `TRUNCATE protocol_versions` each fail with `LDE03`. Use `wantCode`.
     - `TestProtocolVersionsAreGapless` (R03): with v1 and v2 on `E`, v4 fails and v3 succeeds. v1 on a new experiment `F` succeeds.
     - `TestRunProtocolMustBelongToExperiment` (R04): a run on `E` with `PF1` fails with SQLSTATE `23503`.
     - `TestRunProtocolPinIsImmutable` (R11): with a `planned` run on `E` pinned to `PE1`, `UPDATE runs SET protocol_version_id = PE2` fails with `LDE03` as `lde_app` and as the owner. `UPDATE runs SET state = 'running'` succeeds.
