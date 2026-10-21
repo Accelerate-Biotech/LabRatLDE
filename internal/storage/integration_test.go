@@ -433,9 +433,7 @@ func TestProtocolVersionHash(t *testing.T) {
 			VALUES ($1, $2, 1, 'x', $3, 'it@lab', '\x00'::bytea)`, tenant, exp, node)
 		return err
 	})
-	if err == nil {
-		t.Error("INSERT with an explicit sha256 succeeded")
-	}
+	wantCode(t, "INSERT with an explicit sha256", err, "428C9") // generated_always
 }
 
 // SPEC-003-R02
