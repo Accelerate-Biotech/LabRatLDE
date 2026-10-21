@@ -74,7 +74,7 @@ Requirements: [requirements.md](requirements.md) · Design: [design.md](design.m
 
 ## Phase 3: Verify and close out
 
-- [ ] 3.1 `verifier` passes the whole spec
-- [ ] 3.2 `uat-planner` writes [uat.md](uat.md)
-- [ ] 3.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated (the "Protocols as code" row and integrity gap 3)
-- [ ] 3.4 Summary commit written as the PR description
+- [x] 3.1 `verifier` passes the whole spec
+- [x] 3.2 `uat-planner` writes [uat.md](uat.md)
+- [x] 3.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated (the "Protocols as code" row and integrity gap 3)
+- [x] 3.4 Summary commit written as the PR description
