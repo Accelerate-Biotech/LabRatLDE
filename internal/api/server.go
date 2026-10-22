@@ -41,6 +41,9 @@ func (s *Server) Handler() http.Handler {
 	v1 := http.NewServeMux()
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
+	v1.HandleFunc("POST /v1/experiments/{id}/protocol-versions", s.createProtocolVersion)
+	v1.HandleFunc("GET /v1/experiments/{id}/protocol-versions", s.listProtocolVersions)
+	v1.HandleFunc("GET /v1/protocol-versions/{id}", s.getProtocolVersion)
 
 	v1.HandleFunc("POST /v1/runs", s.createRun)
 	v1.HandleFunc("GET /v1/runs/{id}", s.getRun)

@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -10,19 +8,24 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/audit"
-	"github.com/Accelerate-Biotech/LabRatLDE/pkg/frontmatter"
 )
 
+// experiment is read together with its highest protocol version.
 type experiment struct {
-	ID           string          `json:"id"`
-	Slug         string          `json:"slug"`
-	Title        string          `json:"title"`
-	ProtocolMD   string          `json:"protocol_md"`
-	ProtocolMeta json.RawMessage `json:"protocol_meta"`
-	CreatedBy    string          `json:"created_by"`
-	CreatedAt    time.Time       `json:"created_at"`
+	ID                string          `json:"id"`
+	Slug              string          `json:"slug"`
+	Title             string          `json:"title"`
+	ProtocolVersionID string          `json:"protocol_version_id"`
+	ProtocolVersion   int             `json:"protocol_version"`
+	ProtocolSHA256    string          `json:"protocol_sha256"`
+	ProtocolMD        string          `json:"protocol_md"`
+	ProtocolMeta      json.RawMessage `json:"protocol_meta"`
+	CreatedBy         string          `json:"created_by"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
+// createExperiment creates an experiment and version 1 of its protocol in one
+// transaction.
 func (s *Server) createExperiment(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	var req struct {
@@ -38,33 +41,33 @@ func (s *Server) createExperiment(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, badRequest("slug and title are required"))
 		return
 	}
-	doc, err := frontmatter.Parse([]byte(req.ProtocolMD))
-	if err != nil {
-		s.fail(w, r, badRequest("protocol_md: %v", err))
-		return
-	}
-	meta, err := json.Marshal(doc.Meta)
-	if err != nil {
-		s.fail(w, r, badRequest("protocol_md frontmatter is not JSON-representable: %v", err))
+	if req.ProtocolMD == "" {
+		s.fail(w, r, badRequest("protocol_md is required"))
 		return
 	}
 
-	exp := experiment{Slug: req.Slug, Title: req.Title, ProtocolMD: req.ProtocolMD, ProtocolMeta: meta, CreatedBy: p.Actor}
-	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	exp := experiment{Slug: req.Slug, Title: req.Title, ProtocolMD: req.ProtocolMD, CreatedBy: p.Actor}
+	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO experiments (tenant_id, slug, title, protocol_md, protocol_meta, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6)
+			INSERT INTO experiments (tenant_id, slug, title, created_by)
+			VALUES ($1, $2, $3, $4)
 			RETURNING id, created_at`,
-			p.Tenant, exp.Slug, exp.Title, exp.ProtocolMD, exp.ProtocolMeta, p.Actor,
+			p.Tenant, exp.Slug, exp.Title, p.Actor,
 		).Scan(&exp.ID, &exp.CreatedAt); err != nil {
 			return err
 		}
-		digest := sha256.Sum256([]byte(exp.ProtocolMD))
-		_, err := audit.Append(ctx, tx, p.Tenant, audit.Entry{
+		if _, err := audit.Append(ctx, tx, p.Tenant, audit.Entry{
 			Actor: p.Actor, Action: "experiment.created", EntityType: "experiment", EntityID: exp.ID,
-			Payload: map[string]any{"slug": exp.Slug, "title": exp.Title, "protocol_sha256": hex.EncodeToString(digest[:])},
-		})
-		return err
+			Payload: map[string]any{"slug": exp.Slug, "title": exp.Title},
+		}); err != nil {
+			return err
+		}
+		pv, err := addProtocolVersion(ctx, tx, p, exp.ID, exp.Slug, req.ProtocolMD)
+		if err != nil {
+			return err
+		}
+		exp.ProtocolVersionID, exp.ProtocolVersion, exp.ProtocolSHA256 = pv.ID, pv.Version, pv.SHA256
+		return tx.QueryRow(ctx, `SELECT protocol_meta FROM protocol_versions WHERE id = $1`, pv.ID).Scan(&exp.ProtocolMeta)
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -83,9 +86,17 @@ func (s *Server) getExperiment(w http.ResponseWriter, r *http.Request) {
 	var exp experiment
 	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-			SELECT id, slug, title, protocol_md, protocol_meta, created_by, created_at
-			FROM experiments WHERE id = $1`, id,
-		).Scan(&exp.ID, &exp.Slug, &exp.Title, &exp.ProtocolMD, &exp.ProtocolMeta, &exp.CreatedBy, &exp.CreatedAt)
+			SELECT e.id, e.slug, e.title, v.id, v.version, encode(v.sha256, 'hex'), v.protocol_md, v.protocol_meta,
+			       e.created_by, e.created_at
+			FROM experiments e
+			JOIN LATERAL (
+				SELECT * FROM protocol_versions v
+				WHERE v.tenant_id = e.tenant_id AND v.experiment_id = e.id
+				ORDER BY v.version DESC LIMIT 1
+			) v ON true
+			WHERE e.id = $1`, id,
+		).Scan(&exp.ID, &exp.Slug, &exp.Title, &exp.ProtocolVersionID, &exp.ProtocolVersion, &exp.ProtocolSHA256,
+			&exp.ProtocolMD, &exp.ProtocolMeta, &exp.CreatedBy, &exp.CreatedAt)
 	})
 	if err != nil {
 		s.fail(w, r, err)
