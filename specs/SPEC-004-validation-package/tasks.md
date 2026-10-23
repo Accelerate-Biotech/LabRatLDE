@@ -57,7 +57,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
     - `buildReport(reqs map[string]requirement, cites []citation, results map[string]testResult, goTestPassed, dirty bool) report`: exactly the "Verdicts" rules. Sort rows by ID, tests by package then name, and unknown references by ID then test. Set `Format` to `"labrat-validation/1"` and fill `Summary`.
     - `goTest(dir string) (map[string]testResult, bool, error)`, as in the design's "Test run" paragraph. Use `exec.Command("go", "test", "-json", "-count=1", "./...")` with `Dir = dir` and `Stderr = os.Stderr`, and decode stdout with `json.NewDecoder`. An `*exec.ExitError` means `false, nil`.
   - Verify: `go test ./tools/validate/` passes both 1.1 tests without editing them. `gofmt -l . && go vet ./...` is clean.
-- [ ] 1.4 Report writer, `main`, `make validate`
+- [x] 1.4 Report writer, `main`, `make validate`
   - Requirements: SPEC-004-R01, SPEC-004-R05, SPEC-004-R06, SPEC-004-R07, SPEC-004-R10, SPEC-004-R11
   - Files: `tools/validate/main.go` (new), `tools/validate/report.go` (add `writeReport`), `Makefile`, `.gitignore`
   - Do:
