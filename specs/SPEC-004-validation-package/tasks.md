@@ -113,7 +113,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
 
 ## Phase 3: Docs
 
-- [ ] 3.1 README: validation section
+- [x] 3.1 README: validation section
   - Requirements: SPEC-004-R01, SPEC-004-R08
   - Files: `README.md`
   - Do: add a short "Validation (IQ/OQ)" section next to the existing commands. It covers:
