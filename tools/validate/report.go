@@ -1,10 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -192,4 +196,118 @@ func goTest(dir string) (map[string]testResult, bool, error) {
 		return nil, false, err
 	}
 	return results, true, nil
+}
+
+// writeReport writes report.json, report.sha256 and report.md into dir and
+// returns the lowercase hex SHA-256 of the report.json bytes. Package paths in
+// report.md are shown relative to module.
+func writeReport(dir string, r report, module string) (sha string, err error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	js, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	js = append(js, '\n')
+	sum := sha256.Sum256(js)
+	sha = hex.EncodeToString(sum[:])
+
+	if err := os.WriteFile(filepath.Join(dir, "report.json"), js, 0o644); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.sha256"), []byte(sha+"  report.json\n"), 0o644); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(markdownReport(r, sha, module)), 0o644); err != nil {
+		return "", err
+	}
+	return sha, nil
+}
+
+// markdownReport renders the human-readable report, sections in filing order.
+func markdownReport(r report, sha, module string) string {
+	var b strings.Builder
+	short := func(pkg string) string {
+		if pkg == module {
+			return "."
+		}
+		return strings.TrimPrefix(pkg, module+"/")
+	}
+	env := r.Environment
+
+	fmt.Fprintln(&b, "# LabRat validation report (OQ)")
+	fmt.Fprintln(&b)
+	if env.GitDirty {
+		fmt.Fprintln(&b, "**NOT FOR FILING: uncommitted changes**")
+		fmt.Fprintln(&b)
+	}
+	if !r.GoTestPassed {
+		fmt.Fprintln(&b, "**go test reported failures**")
+		fmt.Fprintln(&b)
+	}
+	fmt.Fprintf(&b, "**Result: %s**\n\n", r.Result)
+	fmt.Fprintf(&b, "report.json SHA-256: `%s`\n\n", sha)
+
+	migrations := "none"
+	if len(env.Migrations) > 0 {
+		migrations = strings.Join(env.Migrations, ", ")
+	}
+	dirty := "no"
+	if env.GitDirty {
+		dirty = "yes"
+	}
+	fmt.Fprintln(&b, "## Environment")
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "| Field | Value |")
+	fmt.Fprintln(&b, "|---|---|")
+	fmt.Fprintf(&b, "| Operator | %s |\n", env.Operator)
+	fmt.Fprintf(&b, "| Git commit | %s |\n", env.GitCommit)
+	fmt.Fprintf(&b, "| Uncommitted changes | %s |\n", dirty)
+	fmt.Fprintf(&b, "| Go version | %s |\n", env.GoVersion)
+	fmt.Fprintf(&b, "| OS/arch | %s |\n", env.OSArch)
+	fmt.Fprintf(&b, "| PostgreSQL version | %s |\n", env.PostgresVersion)
+	fmt.Fprintf(&b, "| Migrations | %s |\n", migrations)
+	fmt.Fprintf(&b, "| Started (UTC) | %s |\n", env.StartedAt.Format(time.RFC3339))
+	fmt.Fprintf(&b, "| Finished (UTC) | %s |\n", env.FinishedAt.Format(time.RFC3339))
+	fmt.Fprintln(&b)
+
+	fmt.Fprintln(&b, "## Traceability matrix")
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "| Requirement | Spec (status) | Tests | Verdict |")
+	fmt.Fprintln(&b, "|---|---|---|---|")
+	for _, row := range r.Requirements {
+		var tests []string
+		for _, t := range row.Tests {
+			tests = append(tests, fmt.Sprintf("%s.%s: %s", short(t.Package), t.Name, t.Result))
+		}
+		cell := "none"
+		if len(tests) > 0 {
+			cell = strings.Join(tests, "<br>")
+		}
+		fmt.Fprintf(&b, "| %s | %s (%s) | %s | %s |\n", row.ID, row.Spec, row.SpecStatus, cell, row.Verdict)
+	}
+	fmt.Fprintln(&b)
+
+	fmt.Fprintln(&b, "## Unknown references")
+	fmt.Fprintln(&b)
+	if len(r.UnknownReferences) == 0 {
+		fmt.Fprintln(&b, "None.")
+	} else {
+		fmt.Fprintln(&b, "| ID | Package | Test | File |")
+		fmt.Fprintln(&b, "|---|---|---|---|")
+		for _, u := range r.UnknownReferences {
+			fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", u.ID, short(u.Package), u.Test, u.File)
+		}
+	}
+	fmt.Fprintln(&b)
+
+	fmt.Fprintln(&b, "## Sign-off")
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "| Role | Name | Signature | Date |")
+	fmt.Fprintln(&b, "|---|---|---|---|")
+	fmt.Fprintln(&b, "| Executed by | | | |")
+	fmt.Fprintln(&b, "| Reviewed by | | | |")
+	fmt.Fprintln(&b, "| QA approved | | | |")
+	return b.String()
 }
