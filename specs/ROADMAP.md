@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | Rob Bassett |
-| **Updated** | 2026-10-20 |
+| **Updated** | 2026-10-23 |
 | **Baseline** | [`SPEC-001`](implemented/SPEC-001-core-integrity/requirements.md) (Implemented) at commit `76a7ff0` |
 
 This is the plan for getting from the scaffold to a regulated pilot and beyond. Each spec is a folder holding `requirements.md`, `design.md` and `tasks.md` (template in `TEMPLATE/`); once implemented and verified it moves to `implemented/` with a `uat.md` user acceptance test plan. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
@@ -12,7 +12,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 |---|---|---|
 | SPEC-002 | [Sealing completeness](implemented/SPEC-002-sealing-completeness/requirements.md) | Implemented |
 | SPEC-003 | [Immutable protocol versions](implemented/SPEC-003-protocol-versions/requirements.md) | Implemented |
-| SPEC-004 | [Validation package v1](SPEC-004-validation-package/requirements.md) | Draft |
+| SPEC-004 | [Validation package v1](SPEC-004-validation-package/requirements.md) | Approved |
 | SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | Draft |
 | SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |
 | SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-18 |
+| **Created / Updated** | 2026-10-18 / 2026-10-23 |
 | **Regulatory refs** | 21 CFR 11.10(a); EU Annex 11 §4 (validation) |
 | **Depends on** | `SPEC-001` |
 
@@ -23,7 +23,7 @@ Labs adopting LabRat have to validate it: show that it is installed correctly (I
 - `labrat iq`: installation checks against a running database.
 
 **Out of scope**
-- Shipping compiled OQ test binaries to customer sites (open question 1).
+- Shipping compiled OQ test binaries to customer sites (deferred to a follow-up; open question 1).
 - Signing the report with a key. v1 records a hash only; SPEC-018's key could sign it later.
 - Browser (Playwright) tests. SPEC-005 adds the harness; their results join the matrix in the spec that first adds a UI `Test: yes` requirement.
 - PQ (performance qualification), which is customer-specific.
@@ -33,14 +33,16 @@ Labs adopting LabRat have to validate it: show that it is installed correctly (I
 | ID | Requirement | Test | Source |
 |---|---|---|---|
 | SPEC-004-R01 | When `make validate` runs, the validation tool shall list every requirement marked `Test: yes` in specs with status Approved or Implemented, along with the tests that cite it and each test's result. | no | 11.10(a) |
-| SPEC-004-R02 | If a `Test: yes` requirement in an Approved or Implemented spec has no cited test that passed, then the validation tool shall mark the requirement `NOT VERIFIED` and exit non-zero. | yes | 11.10(a) |
-| SPEC-004-R03 | The validation tool shall count a skipped test as not passed. | yes | 11.10(a) |
+| SPEC-004-R02 | If a `Test: yes` requirement in an Approved or Implemented spec has no citing test, or any citing test did not pass, then the validation tool shall mark the requirement `NOT VERIFIED` and exit non-zero. | yes | 11.10(a) |
+| SPEC-004-R03 | The validation tool shall count a skipped test, or a cited test with no result, as not passed. | yes | 11.10(a) |
 | SPEC-004-R04 | If a test cites a requirement ID that doesn't exist in `specs/`, then the validation tool shall list it under "unknown references" and exit non-zero. | no | traceability |
 | SPEC-004-R05 | If the test database URL (`LDE_TEST_DATABASE_URL`) is not set, then the validation tool shall stop before running tests and exit non-zero. | no | 11.10(a) |
 | SPEC-004-R06 | The validation report shall record the git commit and dirty flag, Go version, OS/arch, PostgreSQL server version, applied migration list, the run's start and end time (UTC), and the operator name passed with `--operator`. | no | Annex 11 §4.4 |
+| SPEC-004-R10 | If the git working tree has uncommitted changes, or `go test` reports any failure, then the validation tool shall still write the report, state the reason at the top of `report.md` (`NOT FOR FILING: uncommitted changes` for a dirty tree), and exit non-zero. | no | Annex 11 §4.4 |
 | SPEC-004-R07 | The validation tool shall write `report.sha256` holding the SHA-256 of `report.json`, and `report.md` shall print the same hash. | no | tamper evidence |
 | SPEC-004-R08 | When `labrat iq` runs, it shall check that all embedded migrations are applied, every tenant-owned table has RLS enabled and forced, the append-only and seal triggers exist and are enabled, `lde_app` is `NOSUPERUSER NOBYPASSRLS`, and it shall print the binary's own SHA-256 and version. | no | IQ |
 | SPEC-004-R09 | If any `labrat iq` check fails, then `labrat iq` shall print each failure and exit non-zero. | no | IQ |
+| SPEC-004-R11 | `report.md` shall end with a blank sign-off table (Executed by, Reviewed by, QA approved; each with name, signature and date) for the customer's own approval. | no | Annex 11 §4 |
 
 ## 4. Acceptance examples
 
@@ -50,13 +52,14 @@ The tool's own tests use fixture spec and test directories under `tools/validate
 - Given an Approved spec with `SPEC-900-R01` (`Test: yes`) and `SPEC-900-R02` (`Test: yes`), and one passing test citing only R01.
 - When the tool runs.
 - Then R02 is `NOT VERIFIED`, R01 is `VERIFIED`, and the exit code is non-zero.
+- And given a second, failing test that also cites R01, R01 is `NOT VERIFIED`.
 - And given a Draft spec `SPEC-901` with an uncited `Test: yes` requirement, the exit code is unaffected.
 
-**SPEC-004-R03**: given a test citing `SPEC-900-R01` that calls `t.Skip`, R01 is `NOT VERIFIED`.
+**SPEC-004-R03**: given a test citing `SPEC-900-R01` that calls `t.Skip`, R01 is `NOT VERIFIED`. Given a test citing `SPEC-900-R01` with no result (its package didn't build), R01 is `NOT VERIFIED`.
 
 ## 5. Open questions
 
 | # | Question | Owner | Answer (date) |
 |---|---|---|---|
-| 1 | Should a release ship the integration tests as a compiled binary (`go test -c`) so a customer can run the OQ without Go or the source? Recommendation: yes, as a follow-up once the format settles. | Rob Bassett | |
-| 2 | Does the report need a template section for the customer's protocol/approval signatures (pre-execution and post-execution)? | Rob Bassett | |
+| 1 | Should a release ship the integration tests as a compiled binary (`go test -c`) so a customer can run the OQ without Go or the source? Recommendation: yes, as a follow-up once the format settles. | Rob Bassett | Deferred to a follow-up spec; not in v1 (2026-10-22) |
+| 2 | Does the report need a template section for the customer's protocol/approval signatures (pre-execution and post-execution)? | Rob Bassett | Yes: a blank sign-off table at the end of `report.md`, R11 (2026-10-22) |
