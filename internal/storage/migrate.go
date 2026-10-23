@@ -19,6 +19,21 @@ var migrationFS embed.FS
 // booting at once apply migrations exactly once.
 const migrationLock = 0x4C44455F4D494752 // "LDE_MIGR"
 
+// MigrationVersions lists the embedded migration versions in apply order,
+// e.g. "0001_core".
+func MigrationVersions() ([]string, error) {
+	names, err := fs.Glob(migrationFS, "migrations/*.sql")
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(names)
+	versions := make([]string, len(names))
+	for i, name := range names {
+		versions[i] = strings.TrimSuffix(strings.TrimPrefix(name, "migrations/"), ".sql")
+	}
+	return versions, nil
+}
+
 // Migrate applies pending forward-only migrations, each in its own
 // transaction. Migrations are embedded in the binary: the binary *is* the
 // schema version. There are no down migrations; regulated systems roll forward.
@@ -42,14 +57,12 @@ func (db *DB) Migrate(ctx context.Context, log *slog.Logger) error {
 		return fmt.Errorf("migrate: bootstrap: %w", err)
 	}
 
-	names, err := fs.Glob(migrationFS, "migrations/*.sql")
+	versions, err := MigrationVersions()
 	if err != nil {
 		return err
 	}
-	sort.Strings(names)
 
-	for _, name := range names {
-		version := strings.TrimSuffix(strings.TrimPrefix(name, "migrations/"), ".sql")
+	for _, version := range versions {
 		var applied bool
 		if err := conn.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&applied); err != nil {
 			return err
@@ -57,7 +70,7 @@ func (db *DB) Migrate(ctx context.Context, log *slog.Logger) error {
 		if applied {
 			continue
 		}
-		sql, err := migrationFS.ReadFile(name)
+		sql, err := migrationFS.ReadFile("migrations/" + version + ".sql")
 		if err != nil {
 			return err
 		}

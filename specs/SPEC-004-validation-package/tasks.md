@@ -82,7 +82,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
 
 ## Phase 2: Installation qualification (`labrat iq`)
 
-- [ ] 2.1 Export the embedded migration list
+- [x] 2.1 Export the embedded migration list
   - Requirements: SPEC-004-R08
   - Files: `internal/storage/migrate.go`
   - Do:
