@@ -91,7 +91,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
     - Behaviour is unchanged. Touch no migration file.
   - Verify: `make test-integration` passes. `gofmt -l . && go vet ./...` is clean.
   - Integrity: yes
-- [ ] 2.2 `labrat iq` subcommand
+- [x] 2.2 `labrat iq` subcommand
   - Requirements: SPEC-004-R08, SPEC-004-R09
   - Files: `cmd/server/iq.go` (new), `cmd/server/main.go` (dispatch only)
   - Do:
