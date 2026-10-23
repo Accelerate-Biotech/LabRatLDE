@@ -125,7 +125,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
 
 ## Phase 4: Verify and close out
 
-- [ ] 4.1 `verifier` passes the whole spec
-- [ ] 4.2 `uat-planner` writes [uat.md](uat.md)
-- [ ] 4.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
-- [ ] 4.4 Summary commit written as the PR description
+- [x] 4.1 `verifier` passes the whole spec
+- [x] 4.2 `uat-planner` writes [uat.md](uat.md)
+- [x] 4.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
+- [x] 4.4 Summary commit written as the PR description
