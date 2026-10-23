@@ -6,7 +6,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
 
 ## Phase 1: Validation tool (`tools/validate`)
 
-- [ ] 1.1 Test: verdicts, skips and missing results (SPEC-004-R02, R03)
+- [x] 1.1 Test: verdicts, skips and missing results (SPEC-004-R02, R03)
   - Requirements: SPEC-004-R02, SPEC-004-R03
   - Files (all new):
     - `tools/validate/validate_test.go` (`package main`)
@@ -37,7 +37,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
       - `TestCitesR01` is absent from `results`, so `SPEC-900-R01` is `NOT VERIFIED` and that test's `result` is `"none"`.
     - Use the field and type names from `design.md` §2. Use `report.Requirements[i].Verdict`, `.Tests[j].Result` and `report.UnknownReferences[i].ID`.
   - Verify: `go vet ./tools/validate/` fails only because `parseSpecs`, `scanTests` and `buildReport` are undefined.
-- [ ] 1.2 Spec parser and test scanner
+- [x] 1.2 Spec parser and test scanner
   - Requirements: SPEC-004-R01, SPEC-004-R04
   - Files: `tools/validate/specs.go`, `tools/validate/cites.go` (new)
   - Do:
@@ -49,7 +49,7 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
       - Store `File` relative to `root`, slash-separated.
     - Also add `readModule(root string) (string, error)`, which returns the path after `module ` in `<root>/go.mod`.
   - Verify: `go vet ./tools/validate/` reports only the missing `buildReport`.
-- [ ] 1.3 Verdicts and the `go test` runner
+- [x] 1.3 Verdicts and the `go test` runner
   - Requirements: SPEC-004-R01, SPEC-004-R02, SPEC-004-R03, SPEC-004-R04
   - Files: `tools/validate/report.go` (new)
   - Do:
