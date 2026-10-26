@@ -36,7 +36,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
     - `listInstruments`: `SELECT id, node_id, name, kind, attrs, created_at FROM instruments WHERE ($1 = '' OR name > (SELECT name FROM instruments WHERE id = NULLIF($1,'')::uuid)) ORDER BY name LIMIT $2`.
     - Both use `readPage`, `nextCursor` and `page` from 1.2. Register `GET /v1/experiments/{id}/runs` and `GET /v1/instruments`.
   - Verify: with two runs on one experiment, `…/runs?limit=1` pages through both in creation order. An unknown experiment is 404. `GET /v1/instruments` lists registered instruments by name.
-- [ ] 1.4 Run detail fields
+- [x] 1.4 Run detail fields
   - Requirements: SPEC-005-R13, SPEC-005-R06
   - Files: `internal/api/runs.go`
   - Do:
