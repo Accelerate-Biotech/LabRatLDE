@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import AuditView from './AuditView';
 import BottomPanel from './BottomPanel';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
@@ -24,7 +25,7 @@ function TabContent({ tab, instruments, open, rename }: { tab: Tab; instruments:
     case 'lineage':
       return <LineageView {...props} />;
     case 'audit':
-      return <p>audit {tab.id}</p>;
+      return <AuditView id={tab.id} />;
   }
 }
 

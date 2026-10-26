@@ -160,7 +160,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
   - Verify:
     - Clicking and the keyboard listbox both select and re-centre.
     - Seed a 500-node chain with a curl loop: create node `n0`, then for `i` in 1..499 create node `ni` and an edge `n(i-1) → ni` (`used`). Opening `n499` upstream renders within 2 s (time it in DevTools Performance).
-- [ ] 3.8 Audit viewer
+- [x] 3.8 Audit viewer
   - Requirements: SPEC-005-R08
   - Files: `web/src/AuditView.tsx`
   - Do:
