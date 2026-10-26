@@ -6,7 +6,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
 
 ## Phase 1: API
 
-- [ ] 1.1 Audit events: filter by entity
+- [x] 1.1 Audit events: filter by entity
   - Requirements: SPEC-005-R10
   - Files: `internal/audit/postgres.go`, `internal/api/audit.go`
   - Do:

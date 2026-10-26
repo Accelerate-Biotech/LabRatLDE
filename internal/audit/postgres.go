@@ -75,10 +75,29 @@ func Scan(ctx context.Context, tx pgx.Tx, tenantID string, afterSeq int64, limit
 	if err != nil {
 		return fmt.Errorf("audit: query events: %w", err)
 	}
+	return scanRows(rows, fn)
+}
+
+// ScanEntity is Scan restricted to one entity's events (uses audit_events_entity).
+func ScanEntity(ctx context.Context, tx pgx.Tx, tenantID, entityType, entityID string, afterSeq int64, limit int, fn func(Event) error) error {
+	rows, err := tx.Query(ctx, `
+		SELECT tenant_id::text, seq, occurred_at, actor, action, entity_type, entity_id, reason, payload, prev_hash, hash
+		FROM audit_events
+		WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3 AND seq > $4
+		ORDER BY seq LIMIT $5`, tenantID, entityType, entityID, afterSeq, limit)
+	if err != nil {
+		return fmt.Errorf("audit: query events: %w", err)
+	}
+	return scanRows(rows, fn)
+}
+
+// scanRows decodes audit_events rows into Events and closes rows.
+func scanRows(rows pgx.Rows, fn func(Event) error) error {
 	defer rows.Close()
 	for rows.Next() {
 		var (
 			ev            Event
+			err           error
 			payload       string
 			prev, current []byte
 		)
