@@ -67,7 +67,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
     - `.gitignore`: add `/web/dist/*`, `!/web/dist/.gitkeep`, `/web/node_modules/`, `/web/test-results/`, `/web/playwright-report/`.
     - In `api.Server.Handler`, add `mux.Handle("/", web.Handler())`. There must be no method in the pattern (see design).
   - Verify: `go build ./...` succeeds with only `.gitkeep` in `web/dist`. `curl -i localhost:8080/` shows the not-built page and the CSP header. `curl -i -X POST localhost:8080/` is 405. `/healthz` and `/v1/...` behave as before.
-- [ ] 2.2 Frontend scaffold
+- [x] 2.2 Frontend scaffold
   - Requirements: SPEC-005-R01, SPEC-005-R03
   - Files (all new under `web/`): `package.json`, `package-lock.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/styles.css`
   - Do:
