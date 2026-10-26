@@ -82,7 +82,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
     - `App.tsx`: renders "LabRat" only for now.
     - `styles.css`: colour tokens on `:root` (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--danger`, `--ok`), chosen for ≥ 4.5:1 contrast on `--bg`, plus a global `:focus-visible` outline.
   - Verify: `npm run build` produces `web/dist/index.html`, `web/dist/assets/*` and `web/dist/.gitkeep`. After `go run ./cmd/server`, `/` shows "LabRat" with no CSP errors in the browser console. `go list ./... | grep node_modules` prints nothing.
-- [ ] 2.3 Makefile, Dockerfile, CI
+- [x] 2.3 Makefile, Dockerfile, CI
   - Requirements: SPEC-005-R01
   - Files: `Makefile`, `Dockerfile`, `.github/workflows/ci.yml`, `.dockerignore` (create if absent)
   - Do:
