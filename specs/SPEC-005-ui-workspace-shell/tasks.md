@@ -168,7 +168,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
     - Entity-type and entity-id inputs with "Filter" and "Clear". Send both or neither; disable "Filter" unless both are filled.
     - A "Verify chain" button calls `verifyAudit()` and shows "Chain valid" or "Chain broken at seq N", the engine head and database head (seq and hash), and "Engine and database agree" or "disagree". It's an `aria-live="polite"` region.
   - Verify: page through more than 100 events. Filtering by a run shows only its events. Verify shows valid and agree on the dev tenant.
-- [ ] 3.9 Command palette
+- [x] 3.9 Command palette
   - Requirements: SPEC-005-R12, SPEC-005-R11
   - Files: `web/src/CommandPalette.tsx`, `web/src/Workspace.tsx`
   - Do:

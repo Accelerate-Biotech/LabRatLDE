@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import AuditView from './AuditView';
 import BottomPanel from './BottomPanel';
+import CommandPalette, { type PaletteItem } from './CommandPalette';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
 import InstrumentView from './InstrumentView';
@@ -13,7 +14,7 @@ import { tabKey, useTabs, type Tab } from './tabs';
 type ViewProps = { id: string; open: (t: Tab) => void; rename: (key: string, title: string) => void };
 
 // TabContent is the one place that maps a tab kind to its view (tasks 3.3-3.8).
-function TabContent({ tab, instruments, open, rename }: { tab: Tab; instruments: Instrument[] } & Pick<ViewProps, 'open' | 'rename'>) {
+function TabContent({ tab, instruments, verifyOnOpen, open, rename }: { tab: Tab; instruments: Instrument[]; verifyOnOpen: number } & Pick<ViewProps, 'open' | 'rename'>) {
   const props: ViewProps = { id: tab.id, open, rename };
   switch (tab.kind) {
     case 'experiment':
@@ -25,20 +26,54 @@ function TabContent({ tab, instruments, open, rename }: { tab: Tab; instruments:
     case 'lineage':
       return <LineageView {...props} />;
     case 'audit':
-      return <AuditView id={tab.id} />;
+      return <AuditView id={tab.id} verifyOnOpen={verifyOnOpen} />;
   }
 }
 
-export default function Workspace() {
-  const { tabs, active, open, close, rename } = useTabs();
+export default function Workspace({ onSignOut }: { onSignOut: () => void }) {
+  const { tabs, active, open, close, closeAll, rename } = useTabs();
   // Read by the instrument view and the command palette (3.9).
   const [loaded, setLoaded] = useState<Loaded>({ experiments: [], runs: {}, instruments: [] });
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [verifyCount, setVerifyCount] = useState(0);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const tablist = useRef<HTMLDivElement>(null);
   const activeKey = active ? tabKey(active) : null;
 
   // The roving tab stop follows the active tab.
   useEffect(() => setFocusKey(activeKey), [activeKey]);
+
+  // Ctrl+K (Cmd+K on macOS) opens the command palette; while open it stays one dialog.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const auditTab: Tab = { kind: 'audit', id: 'audit', title: 'Audit trail' };
+  const paletteItems: PaletteItem[] = [
+    ...loaded.experiments.map((x) => ({ id: `experiment:${x.id}`, title: x.slug, hint: 'Experiment', run: () => open({ kind: 'experiment', id: x.id, title: x.slug }) })),
+    ...Object.values(loaded.runs).flatMap((rs) => rs.map((r) => ({ id: `run:${r.id}`, title: r.label, hint: 'Run', run: () => open({ kind: 'run', id: r.id, title: r.label }) }))),
+    ...loaded.instruments.map((i) => ({ id: `instrument:${i.id}`, title: i.name, hint: 'Instrument', run: () => open({ kind: 'instrument', id: i.id, title: i.name }) })),
+    { id: 'cmd:audit', title: 'Open audit trail', hint: 'Command', run: () => open(auditTab) },
+    {
+      id: 'cmd:verify',
+      title: 'Verify audit chain',
+      hint: 'Command',
+      run: () => {
+        open(auditTab);
+        setVerifyCount((n) => n + 1);
+      },
+    },
+    { id: 'cmd:close-all', title: 'Close all tabs', hint: 'Command', run: closeAll },
+    // The UI is only usable in dev for now, so sign-out is always offered.
+    { id: 'cmd:sign-out', title: 'Sign out', hint: 'Command', run: onSignOut },
+  ];
 
   function closeTab(key: string) {
     close(key);
@@ -99,13 +134,14 @@ export default function Workspace() {
         </div>
         {active ? (
           <div role="tabpanel" id="tabpanel" aria-labelledby={`tab-${tabKey(active)}`} className="tabpanel">
-            <TabContent tab={active} instruments={loaded.instruments} open={open} rename={rename} />
+            <TabContent tab={active} instruments={loaded.instruments} verifyOnOpen={verifyCount} open={open} rename={rename} />
           </div>
         ) : (
           <p className="muted tabpanel">Open an experiment, run or instrument from the explorer.</p>
         )}
       </div>
       <BottomPanel active={active} />
+      {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }

@@ -27,22 +27,22 @@ export default function App() {
   if (env === 'prod') return <p>Sign-in is not configured yet (SPEC-006).</p>;
   if (!actor) return <SignIn onSignIn={setActor} />;
 
+  function signOut() {
+    clearSession();
+    setActor(null);
+  }
+
   return (
     <>
       <header className="topbar">
         <h1>LabRat</h1>
         <span>{actor}</span>
-        <button
-          type="button"
-          onClick={() => {
-            clearSession();
-            setActor(null);
-          }}
-        >
+        <kbd className="muted">Ctrl+K</kbd>
+        <button type="button" onClick={signOut}>
           Sign out
         </button>
       </header>
-      <Workspace />
+      <Workspace onSignOut={signOut} />
     </>
   );
 }
