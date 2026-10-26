@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import BottomPanel from './BottomPanel';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
+import RunView from './RunView';
 import { tabKey, useTabs, type Tab } from './tabs';
 
 // Every view takes the same props: its tab id, plus open and rename from useTabs.
@@ -14,7 +15,7 @@ function TabContent({ tab, open, rename }: { tab: Tab } & Pick<ViewProps, 'open'
     case 'experiment':
       return <ExperimentView {...props} />;
     case 'run':
-      return <p>run {tab.id}</p>;
+      return <RunView {...props} />;
     case 'instrument':
       return <p>instrument {tab.id}</p>;
     case 'lineage':

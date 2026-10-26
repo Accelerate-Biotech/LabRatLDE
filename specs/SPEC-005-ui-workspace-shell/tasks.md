@@ -129,7 +129,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
     - `diff.ts`: `export function lineDiff(a: string, b: string): {op: ' '|'+'|'-'; line: string}[]`, a standard LCS table over lines, under 50 lines.
     - In the experiment view, add two `<select>`s (from version, to version; defaults are previous and current) and a "Compare" button. Fetch both with `getProtocolVersion` and render the result in a `<pre>`, with added and removed lines styled by token colours **and** a `+` or `-` prefix, so the diff doesn't rely on colour alone.
   - Verify: create v1 and v2 of a protocol differing by one line. Comparing them shows exactly one `-` and one `+` line.
-- [ ] 3.5 Run view
+- [x] 3.5 Run view
   - Requirements: SPEC-005-R06
   - Files: `web/src/RunView.tsx`
   - Do: load `getRun`. Show:
