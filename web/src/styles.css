@@ -293,3 +293,35 @@ body {
   color: var(--muted);
   font-weight: normal;
 }
+
+.diff-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+}
+
+.diff-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.diff {
+  font-family: var(--mono, monospace);
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+.diff span {
+  display: block;
+}
+
+.diff-add {
+  background: #12301a;
+  color: var(--ok);
+}
+
+.diff-del {
+  background: #3d1a18;
+  color: var(--danger);
+}

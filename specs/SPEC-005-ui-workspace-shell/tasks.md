@@ -122,7 +122,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
   - Files: `web/src/ExperimentView.tsx`
   - Do: load `getExperiment` and `listProtocolVersions`. Show the title and slug; the current version number and hash; the protocol rendered with `new MarkdownIt({html: false, linkify: false})` into a container via `dangerouslySetInnerHTML` (safe because HTML is disabled); `protocol_meta` as a two-column table, with nested values shown as JSON; and the version list (version, short hash, created by, created at). Add an "Open lineage" button for the experiment's current protocol `node_id`.
   - Verify: an experiment whose protocol contains `<script>alert(1)</script>` shows it as literal text. The version list matches `GET /v1/experiments/{id}/protocol-versions`.
-- [ ] 3.4 Protocol version diff
+- [x] 3.4 Protocol version diff
   - Requirements: SPEC-005-R15
   - Files: `web/src/diff.ts`, `web/src/ExperimentView.tsx`
   - Do:
