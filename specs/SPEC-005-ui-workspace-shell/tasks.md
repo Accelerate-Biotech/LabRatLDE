@@ -205,7 +205,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
 
 ## Phase 5: Docs
 
-- [ ] 5.1 README and web/README
+- [x] 5.1 README and web/README
   - Requirements: SPEC-005-R01, SPEC-005-R02
   - Files: `README.md`, `web/README.md`
   - Do:

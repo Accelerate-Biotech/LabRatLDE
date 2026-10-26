@@ -165,7 +165,7 @@ liquid handlers, and whatever your automation cell emits next.
 │                               CLIENTS                                    │
 │                                                                          │
 │   ┌────────────────────────┐   ┌──────────────┐   ┌───────────────────┐  │
-│   │   Web UI (planned)     │   │ Instruments  │   │ Scripts/Notebooks │  │
+│   │   Web UI               │   │ Instruments  │   │ Scripts/Notebooks │  │
 │   │  React + TypeScript    │   │ HPLC · qPCR  │   │ Python · R · curl │  │
 │   │  WASM compute kernels  │   │ plate · LH   │   │ CI pipelines      │  │
 │   └───────────┬────────────┘   └──────┬───────┘   └─────────┬─────────┘  │
@@ -220,7 +220,7 @@ liquid handlers, and whatever your automation cell emits next.
 
 ## Quickstart
 
-**Prerequisites:** Go 1.22+, Docker. (`jq` for the walkthrough.)
+**Prerequisites:** Go 1.22+, Docker. Node 22 only if you build the web UI. (`jq` for the walkthrough.)
 
 ```bash
 git clone https://github.com/Accelerate-Biotech/LabRatLDE.git
@@ -232,6 +232,8 @@ go run cmd/server/main.go            # migrates, seeds a dev tenant, listens on 
 ```bash
 curl -s localhost:8080/healthz       # {"status":"ok"}
 ```
+
+The web UI is at http://localhost:8080/. In dev it asks for a tenant and an actor name; sign-in is a placeholder until SPEC-006.
 
 > Prefer containers end to end? `docker compose --profile full up -d --build`.
 
@@ -279,11 +281,14 @@ curl -s "${H[@]}" $API/audit/export.ndjson > chain.ndjson && python3 tools/verif
 ### Developer loop
 
 ```bash
+make ui                 # web UI into web/dist (needs Node 22); embedded at build time
 make test               # unit tests, no database needed
 make test-integration   # + database-enforced guarantees (forgery, append-only, RLS)
 make build              # ./bin/labrat, static, CGO-free
 make image              # distroless/static container, nonroot
 ```
+
+A binary built without `make ui` serves a "UI not built" page at `/`; the API keeps working.
 
 ### Traceability report and install checks
 
@@ -384,7 +389,7 @@ honest stubs. Do not use for regulated work yet.
 | Bulk data export formats and archival storage | ❓ architecture not decided; needs a spec |
 | Traceability report (`make validate`) and install checks (`labrat iq`) | ✅ implemented (SPEC-004); evidence only, not a validation package |
 | Validation documentation (risk assessment, IQ/OQ protocols, expected vs actual results) | 🔜 roadmap (SPEC-020) |
-| Web UI (core; stack decided in SPEC-005) | 🔜 roadmap |
+| Web UI: workspace shell (explorer, tabs, lineage, audit viewer; SPEC-005) | ✅ implemented; read-only views, no Playwright tests yet. Editing and charts are on the roadmap |
 
 The phased plan, design decisions and reserved spec numbers are in
 [`specs/ROADMAP.md`](specs/ROADMAP.md).
