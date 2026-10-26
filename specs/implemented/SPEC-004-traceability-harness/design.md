@@ -1,4 +1,4 @@
-# SPEC-004 design: Validation package v1
+# SPEC-004 design: Traceability harness
 
 Requirements: [requirements.md](requirements.md)
 
@@ -98,7 +98,7 @@ Comments anywhere else (helpers, file headers) don't count. `Package` is `module
 `report.sha256` holds `<lowercase hex>  report.json\n`, so `sha256sum -c report.sha256` checks it (R07).
 
 `report.md`, in this order:
-1. `# LabRat validation report (OQ)`
+1. `# LabRat traceability report`, followed by the scope line (R12): `*Test-traceability evidence only. Not by itself sufficient for a regulatory filing: see specs/ROADMAP.md (SPEC-020).*`
 2. Banner lines, only when they apply (R10):
    - `**NOT FOR FILING: uncommitted changes**` when the tree is dirty;
    - `**go test reported failures**` when it didn't exit 0.
@@ -172,4 +172,5 @@ R04 (unknown references) is marked `Test: no`. Its fixture is cheap, but the tes
 | 2026-10-22 | The OQ report records the git commit, not a binary SHA | `make validate` tests the source tree; the binary SHA belongs to IQ (`labrat iq`) | Building a binary just to hash it |
 | 2026-10-22 | The scanner skips `.`/`_`-prefixed dirs, `testdata` and `vendor` | Same set as `go test ./...`; `.claude/worktrees/` would otherwise double-count tests | Scanning everything |
 | 2026-10-22 | `iqTriggers` is an explicit list | IQ must catch a *missing* trigger, which no catalog query can infer | Checking only that existing triggers are enabled |
+| 2026-10-26 | Renamed from "Validation package v1" and added R12's scope line | The output is traceability evidence; the old name and README wording implied it could be filed | Keeping the name and relying on readers to know |
 | 2026-10-22 | Compiled OQ binaries are deferred | Format should settle first (open question 1) | Shipping in v1 |

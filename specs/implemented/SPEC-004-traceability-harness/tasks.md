@@ -1,4 +1,4 @@
-# SPEC-004 tasks: Validation package v1
+# SPEC-004 tasks: Traceability harness
 
 Requirements: [requirements.md](requirements.md) · Design: [design.md](design.md)
 
@@ -129,3 +129,11 @@ No migrations and no schema changes. Run `docker compose up -d` before any task 
 - [x] 4.2 `uat-planner` writes [uat.md](uat.md)
 - [x] 4.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
 - [x] 4.4 Summary commit written as the PR description
+
+## Phase 5: Reframe (added 2026-10-26, after implementation)
+
+- [x] 5.1 Rename to "Traceability harness" and state the scope in the report
+  - Requirements: SPEC-004-R12
+  - Files: this spec folder (renamed to `SPEC-004-traceability-harness/`), `tools/validate/report.go`, `tools/validate/main.go` (comment), `README.md`, `specs/ROADMAP.md`
+  - Do: retitle the spec; print the R12 scope line under the `report.md` title, which becomes `# LabRat traceability report`; drop "fit for filing" from the README; reserve SPEC-020 for validation documentation in the roadmap.
+  - Verify: `gofmt -l . && go vet ./... && go test ./tools/validate/`; `make validate` output starts with the new title and scope line.

@@ -236,7 +236,10 @@ func markdownReport(r report, sha, module string) string {
 	}
 	env := r.Environment
 
-	fmt.Fprintln(&b, "# LabRat validation report (OQ)")
+	fmt.Fprintln(&b, "# LabRat traceability report")
+	fmt.Fprintln(&b)
+	// SPEC-004-R12
+	fmt.Fprintln(&b, "*Test-traceability evidence only. Not by itself sufficient for a regulatory filing: see specs/ROADMAP.md (SPEC-020).*")
 	fmt.Fprintln(&b)
 	if env.GitDirty {
 		fmt.Fprintln(&b, "**NOT FOR FILING: uncommitted changes**")

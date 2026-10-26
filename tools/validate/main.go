@@ -1,6 +1,6 @@
 // Command validate runs the test suite against the database and writes a
-// stamped traceability report (SPEC-004). It is the OQ step of the validation
-// package. See specs/SPEC-004-validation-package/design.md.
+// stamped traceability report (SPEC-004). The report is test evidence only, not
+// a validation package. See specs/implemented/SPEC-004-traceability-harness/design.md.
 package main
 
 import (

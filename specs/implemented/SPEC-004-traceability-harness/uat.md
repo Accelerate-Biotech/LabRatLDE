@@ -1,4 +1,4 @@
-# SPEC-004 user acceptance test plan: Validation package v1
+# SPEC-004 user acceptance test plan: Traceability harness
 
 | | |
 |---|---|
@@ -28,7 +28,7 @@ Cases 7 and 8 use the database that case 1 has already migrated. IQ never migrat
 
 ## 2. Test cases
 
-### UAT-01: Run the OQ and get a traceability report
+### UAT-01: Run the suite and get a traceability report
 
 - **Requirements:** SPEC-004-R01, SPEC-004-R06, SPEC-004-R10 (clean-tree path)
 - **As:** QA reviewer
@@ -39,7 +39,7 @@ Cases 7 and 8 use the database that case 1 has already migrated. IQ never migrat
   4. Open `report.md` in that folder.
 - **Expected:**
   - Exit code is 0 and the result is `PASS`. The folder contains `report.json`, `report.sha256` and `report.md`.
-  - `report.md` starts with `# LabRat validation report (OQ)`, then `**Result: PASS**`. There is no `NOT FOR FILING` or `go test reported failures` banner.
+  - `report.md` starts with `# LabRat traceability report`, then the line saying it is test-traceability evidence only and not by itself sufficient for a regulatory filing (R12), then `**Result: PASS**`. There is no `NOT FOR FILING` or `go test reported failures` banner.
   - The Environment table shows: operator `J. Doe`, git commit (matches `git rev-parse HEAD`) and dirty flag false, Go version, OS/arch, PostgreSQL server version (16.x), the full list of applied migrations, and start and end times in UTC.
   - The Traceability matrix lists every `Test: yes` requirement of the Approved or Implemented specs (for example SPEC-001-R02, SPEC-004-R02, SPEC-004-R03), each with its citing tests marked `pass` and the verdict `VERIFIED`.
   - A requirement from a Draft spec (if any exists under `specs/`) is not listed. A `Test: no` requirement is not listed.
@@ -75,7 +75,7 @@ Cases 7 and 8 use the database that case 1 has already migrated. IQ never migrat
 - **Expected:** The tool prints `validate: LDE_TEST_DATABASE_URL is not set`, exits non-zero (2), no tests run, and no new folder is created under `validation/`.
 - **Result:** Pass / Fail · Notes:
 
-### UAT-05: A dirty working tree cannot produce fileable evidence
+### UAT-05: A dirty working tree is stamped NOT FOR FILING
 
 - **Requirements:** SPEC-004-R10, SPEC-004-R06
 - **As:** QA reviewer

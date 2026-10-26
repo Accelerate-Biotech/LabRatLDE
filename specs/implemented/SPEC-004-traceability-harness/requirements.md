@@ -1,10 +1,10 @@
-# SPEC-004: Validation package v1
+# SPEC-004: Traceability harness
 
 | | |
 |---|---|
 | **Status** | Implemented |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-23 |
+| **Created / Updated** | 2026-10-18 / 2026-10-26 |
 | **Regulatory refs** | 21 CFR 11.10(a); EU Annex 11 §4 (validation) |
 | **Depends on** | `SPEC-001` |
 
@@ -12,7 +12,9 @@ Design: [design.md](design.md) · Tasks: [tasks.md](tasks.md)
 
 ## 1. Problem
 
-Labs adopting LabRat have to validate it: show that it is installed correctly (IQ) and works as specified (OQ). Today that means writing Word documents by hand. LabRat already has the raw material for an executable OQ: specs with `Test: yes` requirements, and tests that cite those requirement IDs. What's missing is a command that runs them against a real database and produces evidence a QA reviewer can file: a traceability matrix and a stamped, tamper-evident report.
+Labs adopting LabRat have to validate it: show that it is installed correctly (IQ) and works as specified (OQ). Today that means writing Word documents by hand. LabRat already has the raw material for an executable OQ: specs with `Test: yes` requirements, and tests that cite those requirement IDs. What's missing is a command that runs them against a real database and produces a traceability matrix in a stamped, tamper-evident report, plus install checks.
+
+This spec was first titled "Validation package v1". It was renamed on 2026-10-26, because what it delivers is test-traceability evidence, not a validation package. A filing also needs a risk assessment, pre-approved IQ/OQ protocols with expected and actual results, and a system that meets Part 11 (identity, roles and e-signatures, SPEC-006 to SPEC-008). That documentation is reserved as SPEC-020.
 
 ## 2. Scope
 
@@ -23,7 +25,7 @@ Labs adopting LabRat have to validate it: show that it is installed correctly (I
 - `labrat iq`: installation checks against a running database.
 
 **Out of scope**
-- Shipping compiled OQ test binaries to customer sites (deferred to a follow-up; open question 1).
+- Validation documentation: a risk assessment justifying the `Test: yes` selection, IQ/OQ protocol templates with pre-execution approval, tests that capture expected and actual results, and compiled OQ test binaries for customer sites (open question 1). Reserved as SPEC-020, after SPEC-008.
 - Signing the report with a key. v1 records a hash only; SPEC-018's key could sign it later.
 - Browser (Playwright) tests. SPEC-005 adds the harness; their results join the matrix in the spec that first adds a UI `Test: yes` requirement.
 - PQ (performance qualification), which is customer-specific.
@@ -43,6 +45,7 @@ Labs adopting LabRat have to validate it: show that it is installed correctly (I
 | SPEC-004-R08 | When `labrat iq` runs, it shall check that all embedded migrations are applied, every tenant-owned table has RLS enabled and forced, the append-only and seal triggers exist and are enabled, `lde_app` is `NOSUPERUSER NOBYPASSRLS`, and it shall print the binary's own SHA-256 and version. | no | IQ |
 | SPEC-004-R09 | If any `labrat iq` check fails, then `labrat iq` shall print each failure and exit non-zero. | no | IQ |
 | SPEC-004-R11 | `report.md` shall end with a blank sign-off table (Executed by, Reviewed by, QA approved; each with name, signature and date) for the customer's own approval. | no | Annex 11 §4 |
+| SPEC-004-R12 | `report.md` shall state, directly under its title, that it is test-traceability evidence only and is not by itself sufficient for a regulatory filing. | no | scope honesty |
 
 ## 4. Acceptance examples
 

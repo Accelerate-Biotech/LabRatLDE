@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | Rob Bassett |
-| **Updated** | 2026-10-23 |
+| **Updated** | 2026-10-26 |
 | **Baseline** | [`SPEC-001`](implemented/SPEC-001-core-integrity/requirements.md) (Implemented) at commit `76a7ff0` |
 
 This is the plan for getting from the scaffold to a regulated pilot and beyond. Each spec is a folder holding `requirements.md`, `design.md` and `tasks.md` (template in `TEMPLATE/`); once implemented and verified it moves to `implemented/` with a `uat.md` user acceptance test plan. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
@@ -12,7 +12,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 |---|---|---|
 | SPEC-002 | [Sealing completeness](implemented/SPEC-002-sealing-completeness/requirements.md) | Implemented |
 | SPEC-003 | [Immutable protocol versions](implemented/SPEC-003-protocol-versions/requirements.md) | Implemented |
-| SPEC-004 | [Validation package v1](implemented/SPEC-004-validation-package/requirements.md) | Implemented |
+| SPEC-004 | [Traceability harness](implemented/SPEC-004-traceability-harness/requirements.md) | Implemented |
 | SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | Draft |
 | SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |
 | SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
@@ -28,6 +28,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-017 | [Open exports](SPEC-017-open-exports/requirements.md) | Draft |
 | SPEC-018 | [Audit chain anchoring](SPEC-018-chain-anchoring/requirements.md) | Draft |
 | SPEC-019 | [CLI (optional)](SPEC-019-cli/requirements.md) | Draft |
+| SPEC-020 | Validation documentation | Brief only (§5, Phase 1) |
 
 **SQLSTATE registry** (custom codes raised by triggers): `LDE01` lineage cycle (SPEC-001), `LDE02` forged or non-extending audit event (SPEC-001), `LDE03` immutable/append-only record (SPEC-001, reused), `LDE04` sealed record (SPEC-002), `LDE05` role denied (SPEC-006), `LDE06` invalid schema reference (SPEC-009), `LDE07` signature rule violation (SPEC-008).
 
@@ -48,7 +49,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | Revisions / Git-like workflow | Not started | |
 | MCP / agents, pre-flight checks | Not started | |
 | Open exports, chain anchoring | Not started | |
-| Validation as code | Foundation | `Test: yes` tests cite requirement IDs; no report or IQ yet |
+| Validation as code | Partial | `make validate` traceability report and `labrat iq` (SPEC-004); no risk assessment, protocols or expected-vs-actual evidence yet (SPEC-020) |
 
 ### Integrity gaps in the current build
 
@@ -116,7 +117,7 @@ Notes are first-class, revisioned Markdown attached to runs and nodes. Policy de
 |---|---|---|---|---|---|
 | SPEC-002 | Sealing completeness | Once a run is signed, the DB rejects new edges touching its node, readings for its datasets, and attr updates to those nodes. Revoke unused `UPDATE` grants, or audit them with a trigger | Each sealing rule, against the DB | 11.10(c), (e) | 001 |
 | SPEC-003 | Immutable protocol versions | Append-only `protocol_versions` with SHA-256; a version is a `protocol` lineage node (prov:Plan); runs pin `protocol_version_id` and the hash; an edit creates a new version | Pinned hash matches stored text; versions are immutable | 11.10(e) | 001 |
-| SPEC-004 | Validation package v1 | `make validate` runs the `Test: yes` suite with `-json`, maps tests to requirement IDs in `specs/`, and emits a traceability matrix plus a report stamped with binary SHA, migration version and time, with the report hash recorded. `labrat iq` runs the install checks | Any `Test: yes` requirement without a passing test is flagged | 11.10(a) | none |
+| SPEC-004 | Traceability harness | `make validate` runs the suite with `-json`, maps tests to requirement IDs in `specs/`, and emits a traceability matrix in a report stamped with git commit, migrations and time, with the report hash recorded. `labrat iq` runs the install checks. Evidence only, not a validation package (see SPEC-020) | Any `Test: yes` requirement without a passing test is flagged | 11.10(a) | none |
 | SPEC-005 | UI stack and workspace shell | Stack decision (React + TypeScript recommended); assets embedded with `go:embed`; IDE-style shell (explorer, editor pane, problems panel, history panel); read-only views: experiments, run, lineage explorer, audit viewer; Playwright harness wired into SPEC-004 | None (UI plumbing) | none | none |
 
 ### Phase 1: Identity, roles, revisions and signatures (blocks any regulated use)
@@ -126,6 +127,7 @@ Notes are first-class, revisioned Markdown attached to runs and nodes. Policy de
 | SPEC-006 | Identity and roles | OIDC bearer tokens; tenant from claims; principal kinds `human` / `service` / `agent` (`on_behalf_of`); roles `scientist`, `reviewer`, `schema_steward` (per namespace), `qa`, `admin`; role grants audited; role-gated actions checked in the DB; dev headers only in `LDE_ENV=dev`. UI: login, my roles | No tenant access without auth; role gates; prod rejects dev headers | 11.10(d), (g), 11.300 | 005 |
 | SPEC-007 | Revisions, change sets and notes | §4 above: revision tables, the change-set lifecycle, `log`/`diff`/`blame`, notes, reviewed changes to sealed records. UI: history/diff panel, notes editor, review inbox | Revisions never altered or removed (DB); a correction keeps the prior value; commits are atomic; sealed records change only through a reviewed change set | 11.10(e) | 002, 006 |
 | SPEC-008 | Electronic signatures v2 | `signatures` record (signer, printed name, controlled meaning, time, manifest digest of the signed revision: run + datasets + notes); step-up re-auth; ordered multi-signature policy; a correction invalidates signatures; agents and services can't sign (DB). UI: sign dialog with re-auth, sign-off inbox | Manifest binding; invalidation on correction; agents can't sign; re-auth freshness; sealing | 11.50, 11.70, 11.100, 11.200 | 002, 006, 007 |
+| SPEC-020 | Validation documentation | Risk assessment justifying the `Test: yes` selection; IQ/OQ protocol templates with pre-execution approval; tests record expected vs actual results into the SPEC-004 report; compiled OQ test binaries (`go test -c`) runnable on the installed system without source | Expected and actual results captured for every `Test: yes` requirement | 11.10(a); GAMP 5 | 004, 008 |
 
 ### Phase 2: Structured data and schema governance
 
@@ -164,7 +166,7 @@ Notes are first-class, revisioned Markdown attached to runs and nodes. Policy de
 002 Sealing ─┐
 003 Protocols ┼─► 006 Identity ─► 007 Revisions ─► 008 Signatures ─► regulated pilot
 005 UI shell ─┘                                          │
-004 Validation package grows alongside every spec        └─► 009 Schemas ─► 010 Governance
+004 Traceability harness grows alongside every spec       └─► 009 Schemas ─► 010 Governance
 ```
 
 Ingestion (012–013) and agents (014–016) follow once a trustworthy signature and change-set flow exist. Agents and parsers both depend on change sets.
