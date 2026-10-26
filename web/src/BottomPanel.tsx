@@ -99,7 +99,7 @@ export default function BottomPanel({ active }: { active: Tab | null }) {
           </button>
         ))}
       </div>
-      <div role="tabpanel" id="panel-body" aria-labelledby={`panel-tab-${panel}`} className="panel-body">
+      <div role="tabpanel" id="panel-body" aria-labelledby={`panel-tab-${panel}`} className="panel-body" tabIndex={0}>
         {panel === 'Problems' ? <p className="muted">No problems</p> : <History tab={active} />}
       </div>
     </section>

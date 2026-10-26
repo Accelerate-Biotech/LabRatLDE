@@ -179,7 +179,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
       - the commands "Open audit trail", "Verify audit chain" (opens the audit tab and runs verify), "Close all tabs" and, in dev only, "Sign out".
     - Filter by case-insensitive substring of the title. Up and Down move, Enter runs and closes, and Esc closes. Focus returns to the element that had it before.
   - Verify: Ctrl+K, type "pla", Enter opens the run "Plate 7". Esc restores focus. It also works on macOS with Cmd+K, or this is checked by code review if no Mac is available.
-- [ ] 3.10 Accessibility and bundle check
+- [x] 3.10 Accessibility and bundle check
   - Requirements: SPEC-005-R11
   - Files: `web/src/styles.css` and any view file, only where a fix is needed
   - Do:

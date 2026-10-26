@@ -6,6 +6,17 @@
  *   --border  #7a8592   4.93:1
  *   --danger  #ff8f85   8.39:1
  *   --ok      #7ee787  12.05:1
+ * Lineage node kinds on --bg (graph fills, need 3:1; all pass):
+ *   --kind-sample #7ee787 12.05:1   --kind-reagent    #f2cc60 11.97:1
+ *   --kind-protocol #d2a8ff 9.51:1  --kind-run        #79b8ff  8.91:1
+ *   --kind-instrument #ffa657 9.56:1  --kind-dataset  #56d4dd 10.45:1
+ *   --kind-analysis #ff9bce 9.55:1
+ * Other pairs:
+ *   --ok on diff-add #12301a        9.34:1
+ *   --danger on diff-del #3d1a18    7.00:1
+ *   --bg on --accent (selected list option)  8.91:1
+ *   --accent focus outline on --bg  8.91:1 (needs 3:1)
+ *   --border (UI borders, edges) on --bg  4.93:1 (needs 3:1)
  */
 :root {
   --bg: #0f1419;
