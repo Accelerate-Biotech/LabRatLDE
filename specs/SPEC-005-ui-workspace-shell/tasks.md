@@ -143,7 +143,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
 
     Add an "Open lineage" button for `node_id`.
   - Verify: the run from 1.4's verify shows the sample input, the dataset with count 3 and the matching SHA-256, and `run.created` in its history. After a transition through the API and a refresh, the new event appears.
-- [ ] 3.6 Instrument view
+- [x] 3.6 Instrument view
   - Requirements: SPEC-005-R16
   - Files: `web/src/InstrumentView.tsx`
   - Do: show name, kind and `attrs` (key/value table) for the instrument. Find it in the explorer's already-loaded list; if the tab was opened from the hash, page `listInstruments` until it's found. Add an "Open lineage" button for `node_id`.

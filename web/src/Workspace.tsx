@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import BottomPanel from './BottomPanel';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
+import InstrumentView from './InstrumentView';
 import RunView from './RunView';
+import type { Instrument } from './api';
 import { tabKey, useTabs, type Tab } from './tabs';
 
 // Every view takes the same props: its tab id, plus open and rename from useTabs.
 type ViewProps = { id: string; open: (t: Tab) => void; rename: (key: string, title: string) => void };
 
 // TabContent is the one place that maps a tab kind to its view (tasks 3.3-3.8).
-function TabContent({ tab, open, rename }: { tab: Tab } & Pick<ViewProps, 'open' | 'rename'>) {
+function TabContent({ tab, instruments, open, rename }: { tab: Tab; instruments: Instrument[] } & Pick<ViewProps, 'open' | 'rename'>) {
   const props: ViewProps = { id: tab.id, open, rename };
   switch (tab.kind) {
     case 'experiment':
@@ -17,7 +19,7 @@ function TabContent({ tab, open, rename }: { tab: Tab } & Pick<ViewProps, 'open'
     case 'run':
       return <RunView {...props} />;
     case 'instrument':
-      return <p>instrument {tab.id}</p>;
+      return <InstrumentView {...props} instruments={instruments} />;
     case 'lineage':
       return <p>lineage {tab.id}</p>;
     case 'audit':
@@ -27,8 +29,8 @@ function TabContent({ tab, open, rename }: { tab: Tab } & Pick<ViewProps, 'open'
 
 export default function Workspace() {
   const { tabs, active, open, close, rename } = useTabs();
-  // Read by the instrument view (3.6) and the command palette (3.9).
-  const [, setLoaded] = useState<Loaded>({ experiments: [], runs: {}, instruments: [] });
+  // Read by the instrument view and the command palette (3.9).
+  const [loaded, setLoaded] = useState<Loaded>({ experiments: [], runs: {}, instruments: [] });
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const tablist = useRef<HTMLDivElement>(null);
   const activeKey = active ? tabKey(active) : null;
@@ -95,7 +97,7 @@ export default function Workspace() {
         </div>
         {active ? (
           <div role="tabpanel" id="tabpanel" aria-labelledby={`tab-${tabKey(active)}`} className="tabpanel">
-            <TabContent tab={active} open={open} rename={rename} />
+            <TabContent tab={active} instruments={loaded.instruments} open={open} rename={rename} />
           </div>
         ) : (
           <p className="muted tabpanel">Open an experiment, run or instrument from the explorer.</p>
