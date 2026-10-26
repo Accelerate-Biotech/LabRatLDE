@@ -190,7 +190,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
 
 ## Phase 4: Playwright harness
 
-- [ ] 4.1 Playwright config, empty suite
+- [x] 4.1 Playwright config, empty suite
   - Requirements: (harness from scope; supports ROADMAP D12)
   - Files: `web/package.json`, `web/package-lock.json`, `web/playwright.config.ts`, `web/e2e/README.md`
   - Do:

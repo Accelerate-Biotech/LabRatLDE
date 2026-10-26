@@ -5,7 +5,8 @@
   "version": "0.0.0",
   "scripts": {
     "build": "tsc -b && vite build && node -e \"require('fs').writeFileSync('dist/.gitkeep','')\"",
-    "dev": "vite"
+    "dev": "vite",
+    "e2e": "playwright test --pass-with-no-tests"
   },
   "dependencies": {
     "cytoscape": "3.34.4",
@@ -15,6 +16,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/cytoscape": "3.21.9",
     "@types/cytoscape-dagre": "2.3.4",
     "@types/markdown-it": "14.2.0",

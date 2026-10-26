@@ -11,7 +11,7 @@ ui: ## Build the web UI into web/dist (embedded by the server)
 	cd web && npm ci && npm run build
 
 e2e: ## Browser end-to-end tests (needs `make ui` and `make up`)
-	cd web && npx playwright test
+	cd web && npm run e2e
 
 run: ## Run against the compose stack
 	go run ./cmd/server
