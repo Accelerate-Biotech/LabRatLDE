@@ -38,6 +38,9 @@ func New(cfg config.Config, db *storage.DB, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
+	// Outside identify: the UI reads this before sign-in, and in prod identify
+	// refuses every request until OIDC is wired.
+	mux.HandleFunc("GET /v1/meta", s.meta)
 
 	v1 := http.NewServeMux()
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
@@ -74,6 +77,10 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"env": s.cfg.Env})
 }
 
 // ---------------------------------------------------------------------------

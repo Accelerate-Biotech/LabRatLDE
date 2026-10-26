@@ -50,7 +50,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
       - `SELECT n.id, n.label, (a.payload::jsonb->>'count')::bigint, a.payload::jsonb->>'sha256' FROM lineage_edges e JOIN lineage_nodes n ON n.id = e.to_id LEFT JOIN audit_events a ON a.entity_type = 'dataset' AND a.entity_id = n.id::text AND a.action = 'instrument.ingested' WHERE e.from_id = $1 AND e.relation = 'wasGeneratedBy' ORDER BY n.label`.
     - `Inputs` and `Datasets` are `[]` when there are none, never `null`. Respond with `runDetail`. `createRun` and `transitionRun` responses are unchanged.
   - Verify: create a sample node, a run using it, and an instrument, then stream 3 readings with `run_id`. `GET /v1/runs/{id}` shows the sample in `inputs` (and no protocol node), and the dataset with `count: 3` and the same `sha256` the stream response returned.
-- [ ] 1.5 `GET /v1/meta`
+- [x] 1.5 `GET /v1/meta`
   - Requirements: SPEC-005-R14
   - Files: `internal/api/server.go`
   - Do: add `func (s *Server) meta(w, r)` writing `{"env": s.cfg.Env}`. Register it on the **outer** `mux` with `mux.HandleFunc("GET /v1/meta", s.meta)`, so it isn't wrapped by `identify`. Add a comment saying why.
