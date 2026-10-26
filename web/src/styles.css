@@ -30,3 +30,63 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.topbar span {
+  margin-right: auto;
+  color: var(--muted);
+}
+
+.signin {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 24rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.signin h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+}
+
+.signin input {
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.signin button,
+.topbar button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+[role="alert"] {
+  color: var(--danger);
+  padding: 1rem;
+}

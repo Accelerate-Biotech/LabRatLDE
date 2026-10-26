@@ -96,7 +96,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
 
 Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts` may be called (R03).
 
-- [ ] 3.1 API client and dev sign-in
+- [x] 3.1 API client and dev sign-in
   - Requirements: SPEC-005-R03, SPEC-005-R09
   - Files: `web/src/api.ts`, `web/src/SignIn.tsx`, `web/src/App.tsx`
   - Do:
