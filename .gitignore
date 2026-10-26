@@ -9,6 +9,13 @@ coverage.*
 .vscode/
 .DS_Store
 
+# UI build output and tooling (web/dist/.gitkeep keeps the embed pattern valid)
+/web/dist/*
+!/web/dist/.gitkeep
+/web/node_modules/
+/web/test-results/
+/web/playwright-report/
+
 # Local Claude Code setup (agents, settings, worktrees) and project instructions
 .claude/
 CLAUDE.md

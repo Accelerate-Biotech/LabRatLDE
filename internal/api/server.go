@@ -20,6 +20,7 @@ import (
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/domain"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/ingest"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/storage"
+	"github.com/Accelerate-Biotech/LabRatLDE/web"
 )
 
 const maxJSONBody = 1 << 20
@@ -68,6 +69,8 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("GET /v1/audit/verify", s.verifyAudit)
 
 	mux.Handle("/v1/", s.identify(v1))
+	// No method in the pattern: "GET /" would conflict with "/v1/" in the 1.22 mux.
+	mux.Handle("/", web.Handler())
 	return s.logRequests(mux)
 }
 

@@ -58,7 +58,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
 
 ## Phase 2: Serving and build
 
-- [ ] 2.1 `web` package: embedded assets, CSP, not-built page
+- [x] 2.1 `web` package: embedded assets, CSP, not-built page
   - Requirements: SPEC-005-R01, SPEC-005-R02, SPEC-005-R04
   - Files: `web/web.go` (new), `web/dist/.gitkeep` (new, empty), `.gitignore`, `internal/api/server.go`
   - Do:
