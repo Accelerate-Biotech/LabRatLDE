@@ -3,6 +3,7 @@ import BottomPanel from './BottomPanel';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
 import InstrumentView from './InstrumentView';
+import LineageView from './LineageView';
 import RunView from './RunView';
 import type { Instrument } from './api';
 import { tabKey, useTabs, type Tab } from './tabs';
@@ -21,7 +22,7 @@ function TabContent({ tab, instruments, open, rename }: { tab: Tab; instruments:
     case 'instrument':
       return <InstrumentView {...props} instruments={instruments} />;
     case 'lineage':
-      return <p>lineage {tab.id}</p>;
+      return <LineageView {...props} />;
     case 'audit':
       return <p>audit {tab.id}</p>;
   }

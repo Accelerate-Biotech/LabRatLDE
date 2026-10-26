@@ -148,7 +148,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
   - Files: `web/src/InstrumentView.tsx`
   - Do: show name, kind and `attrs` (key/value table) for the instrument. Find it in the explorer's already-loaded list; if the tab was opened from the hash, page `listInstruments` until it's found. Add an "Open lineage" button for `node_id`.
   - Verify: opening HPLC-01 shows its fields, and the lineage button opens a lineage tab centred on its node.
-- [ ] 3.7 Lineage explorer
+- [x] 3.7 Lineage explorer
   - Requirements: SPEC-005-R07, SPEC-005-R11
   - Files: `web/src/LineageView.tsx`
   - Do:
