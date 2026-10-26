@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | In review |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
 | **Created / Updated** | 2026-10-18 / 2026-10-26 |
 | **Regulatory refs** | none |
