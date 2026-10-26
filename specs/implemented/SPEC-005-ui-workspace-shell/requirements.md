@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved |
+| **Status** | Implemented |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-26 |
+| **Created / Updated** | 2026-10-18 / 2026-10-27 |
 | **Regulatory refs** | none |
 | **Depends on** | `SPEC-001`, `SPEC-003` (protocol version views) |
 

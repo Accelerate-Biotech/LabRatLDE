@@ -216,8 +216,8 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
 
 ## Phase 6: Verify and close out
 
-- [ ] 6.1 `verifier` passes the whole spec
+- [x] 6.1 `verifier` passes the whole spec
   - [x] 6.1a Verifier round 1 FAIL: record the dependencies and deviations in the design decision log (docs only; no code change)
-- [ ] 6.2 `uat-planner` writes [uat.md](uat.md)
-- [ ] 6.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
-- [ ] 6.4 Summary commit written as the PR description
+- [x] 6.2 `uat-planner` writes [uat.md](uat.md)
+- [x] 6.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
+- [x] 6.4 Summary commit written as the PR description
