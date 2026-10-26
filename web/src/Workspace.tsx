@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import BottomPanel from './BottomPanel';
 import Explorer, { type Loaded } from './Explorer';
+import ExperimentView from './ExperimentView';
 import { tabKey, useTabs, type Tab } from './tabs';
 
+// Every view takes the same props: its tab id, plus open and rename from useTabs.
+type ViewProps = { id: string; open: (t: Tab) => void; rename: (key: string, title: string) => void };
+
 // TabContent is the one place that maps a tab kind to its view (tasks 3.3-3.8).
-function TabContent({ tab }: { tab: Tab }) {
+function TabContent({ tab, open, rename }: { tab: Tab } & Pick<ViewProps, 'open' | 'rename'>) {
+  const props: ViewProps = { id: tab.id, open, rename };
   switch (tab.kind) {
     case 'experiment':
-      return <p>experiment {tab.id}</p>;
+      return <ExperimentView {...props} />;
     case 'run':
       return <p>run {tab.id}</p>;
     case 'instrument':
@@ -20,7 +25,7 @@ function TabContent({ tab }: { tab: Tab }) {
 }
 
 export default function Workspace() {
-  const { tabs, active, open, close } = useTabs();
+  const { tabs, active, open, close, rename } = useTabs();
   // Read by the instrument view (3.6) and the command palette (3.9).
   const [, setLoaded] = useState<Loaded>({ experiments: [], runs: {}, instruments: [] });
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -89,7 +94,7 @@ export default function Workspace() {
         </div>
         {active ? (
           <div role="tabpanel" id="tabpanel" aria-labelledby={`tab-${tabKey(active)}`} className="tabpanel">
-            <TabContent tab={active} />
+            <TabContent tab={active} open={open} rename={rename} />
           </div>
         ) : (
           <p className="muted tabpanel">Open an experiment, run or instrument from the explorer.</p>

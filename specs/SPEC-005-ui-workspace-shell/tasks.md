@@ -117,7 +117,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
     - `Explorer.tsx`: `role="tree"` with experiments, which expand to load runs via `listRuns`; instruments; and an "Audit trail" item. Up and Down move, Right and Left expand and collapse, Enter opens. Show a "Load more" item when `next_cursor` is non-null.
     - `BottomPanel.tsx`: tabs "Problems" (shows "No problems") and "History", which shows `listAuditEvents(0, type, id)` for the active tab's entity (`experiment`, `run`, `instrument`, or `lineage_node` for lineage) as time, actor, action and reason.
   - Verify: open an experiment, a run and an instrument from the explorer using the keyboard only. Reopening one focuses its tab. Reloading the page restores the active tab from the hash, and History shows that entity's events.
-- [ ] 3.3 Experiment view
+- [x] 3.3 Experiment view
   - Requirements: SPEC-005-R05
   - Files: `web/src/ExperimentView.tsx`
   - Do: load `getExperiment` and `listProtocolVersions`. Show the title and slug; the current version number and hash; the protocol rendered with `new MarkdownIt({html: false, linkify: false})` into a container via `dangerouslySetInnerHTML` (safe because HTML is disabled); `protocol_meta` as a two-column table, with nested values shown as JSON; and the version list (version, short hash, created by, created at). Add an "Open lineage" button for the experiment's current protocol `node_id`.

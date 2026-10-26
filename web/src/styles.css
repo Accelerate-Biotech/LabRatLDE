@@ -239,3 +239,57 @@ body {
   color: var(--muted);
   font-weight: normal;
 }
+
+/* Views */
+.view h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+.view h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.hash {
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.protocol {
+  max-width: 70ch;
+}
+
+.data {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data th,
+.data td {
+  padding: 0.2rem 1rem 0.2rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data thead th,
+.data tbody th {
+  color: var(--muted);
+  font-weight: normal;
+}
