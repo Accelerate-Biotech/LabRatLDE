@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { clearSession, meta, storedActor, type Meta } from './api';
 import SignIn from './SignIn';
+import Workspace from './Workspace';
 
 export default function App() {
   const [env, setEnv] = useState<Meta['env'] | null>(null);
@@ -41,7 +42,7 @@ export default function App() {
           Sign out
         </button>
       </header>
-      <div className="workspace" />
+      <Workspace />
     </>
   );
 }

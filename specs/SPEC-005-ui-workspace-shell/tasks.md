@@ -108,7 +108,7 @@ Each view lives in one file under `web/src/`. Only the endpoints in `src/api.ts`
       - For `prod`, show "Sign-in is not configured yet (SPEC-006)."
       - For `dev` without a stored actor, show `SignIn`: a form with tenant (prefilled with the dev tenant) and actor, and labelled inputs, where submit stores both. Otherwise render the workspace placeholder and a header with the actor name and a "Sign out" button that clears storage.
   - Verify: in the browser, sign in as `alice`. A Network-tab request to `/v1/experiments` carries both headers. With `LDE_ENV=prod`, no form appears.
-- [ ] 3.2 Workspace shell: explorer, tabs, bottom panel
+- [x] 3.2 Workspace shell: explorer, tabs, bottom panel
   - Requirements: SPEC-005-R05, SPEC-005-R11
   - Files: `web/src/Workspace.tsx`, `web/src/Explorer.tsx`, `web/src/tabs.ts`, `web/src/BottomPanel.tsx`, `web/src/styles.css`
   - Do:

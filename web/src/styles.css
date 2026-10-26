@@ -90,3 +90,152 @@ body {
   color: var(--danger);
   padding: 1rem;
 }
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  grid-template-rows: 1fr 12rem;
+  grid-template-areas:
+    "explorer main"
+    "explorer bottom";
+}
+
+.explorer {
+  grid-area: explorer;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.bottom {
+  grid-area: bottom;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.tree,
+.tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree {
+  padding: 0.25rem 0;
+}
+
+.tree [role="treeitem"]:focus-visible {
+  outline: none;
+}
+
+.tree [role="treeitem"]:focus-visible > .tree-label {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tree-label {
+  display: block;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+
+.tree [aria-level="2"] > .tree-label {
+  padding-left: 1.5rem;
+}
+
+.tree li[role="none"] {
+  padding: 0.15rem 0.5rem 0.15rem 1.5rem;
+}
+
+.tree [role="alert"] {
+  padding: 0;
+}
+
+.tabstrip {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
+
+.tab[data-active="true"] {
+  box-shadow: inset 0 -2px var(--accent);
+}
+
+.tab button,
+.bottom [role="tab"] {
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[data-active="true"] button,
+.bottom [role="tab"][aria-selected="true"] {
+  color: var(--fg);
+}
+
+.tab .tab-close {
+  padding: 0.4rem 0.5rem 0.4rem 0;
+}
+
+.tabpanel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 1rem;
+}
+
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0.5rem 1rem;
+}
+
+.panel-body p {
+  margin: 0;
+}
+
+.history {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.history th,
+.history td {
+  padding: 0.2rem 0.75rem 0.2rem 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.history th {
+  color: var(--muted);
+  font-weight: normal;
+}
