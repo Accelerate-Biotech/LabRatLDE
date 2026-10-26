@@ -13,7 +13,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-002 | [Sealing completeness](implemented/SPEC-002-sealing-completeness/requirements.md) | Implemented |
 | SPEC-003 | [Immutable protocol versions](implemented/SPEC-003-protocol-versions/requirements.md) | Implemented |
 | SPEC-004 | [Traceability harness](implemented/SPEC-004-traceability-harness/requirements.md) | Implemented |
-| SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | Draft |
+| SPEC-005 | [UI stack and workspace shell](SPEC-005-ui-workspace-shell/requirements.md) | In review |
 | SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |
 | SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
 | SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures/requirements.md) | Draft |
