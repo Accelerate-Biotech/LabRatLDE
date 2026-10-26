@@ -48,6 +48,7 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("GET /v1/protocol-versions/{id}", s.getProtocolVersion)
 
 	v1.HandleFunc("POST /v1/runs", s.createRun)
+	v1.HandleFunc("GET /v1/experiments/{id}/runs", s.listExperimentRuns)
 	v1.HandleFunc("GET /v1/runs/{id}", s.getRun)
 	v1.HandleFunc("POST /v1/runs/{id}/transitions", s.transitionRun)
 
@@ -55,6 +56,7 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/lineage/edges", s.createEdge)
 	v1.HandleFunc("GET /v1/lineage/{id}", s.getLineage)
 
+	v1.HandleFunc("GET /v1/instruments", s.listInstruments)
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)
 	v1.HandleFunc("POST /v1/instruments/{id}/stream", s.streamReadings)
 

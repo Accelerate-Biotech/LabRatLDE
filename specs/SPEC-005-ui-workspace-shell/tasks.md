@@ -26,7 +26,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
       - `func nextCursor(n, limit int, lastID string) *string`: returns `&lastID` when `n == limit`, else `nil`.
     - In `experiments.go`, add `listExperiments` and register `v1.HandleFunc("GET /v1/experiments", s.listExperiments)` in `server.go`. Inside `WithTenant`, run `SELECT id, slug, title, created_at FROM experiments WHERE ($1 = '' OR slug > (SELECT slug FROM experiments WHERE id = NULLIF($1,'')::uuid)) ORDER BY slug LIMIT $2`, passing the cursor as text. Items are `{id, slug, title, created_at}`. Respond `page{Items: items, NextCursor: …}`, with `items` never `nil` (`[]`).
   - Verify: create 3 experiments. `GET /v1/experiments?limit=2` returns 2 and a `next_cursor`, and following it returns 1 and `next_cursor: null`. `limit=0` and `cursor=x` are 400.
-- [ ] 1.3 `GET /v1/experiments/{id}/runs` and `GET /v1/instruments`
+- [x] 1.3 `GET /v1/experiments/{id}/runs` and `GET /v1/instruments`
   - Requirements: SPEC-005-R10
   - Files: `internal/api/runs.go`, `internal/api/instruments.go`, `internal/api/server.go` (routes only)
   - Do:

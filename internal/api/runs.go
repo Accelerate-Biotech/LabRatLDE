@@ -127,6 +127,68 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, run)
 }
 
+// listExperimentRuns pages through an experiment's runs in creation order.
+// The cursor is the id of the last run on the previous page.
+//
+//	GET /v1/experiments/{id}/runs?cursor=<uuid>&limit=<1..200>
+func (s *Server) listExperimentRuns(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	id := r.PathValue("id")
+	if !validUUID(id) {
+		s.fail(w, r, notFound("experiment"))
+		return
+	}
+	cursor, limit, err := readPage(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	type summary struct {
+		ID        string    `json:"id"`
+		Label     string    `json:"label"`
+		State     string    `json:"state"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	items := []summary{}
+	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+		var one int
+		err := tx.QueryRow(ctx, `SELECT 1 FROM experiments WHERE id = $1`, id).Scan(&one)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return notFound("experiment")
+		} else if err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, `
+			SELECT r.id, n.label, r.state, r.created_at FROM runs r
+			JOIN lineage_nodes n ON n.id = r.node_id
+			WHERE r.experiment_id = $1
+			  AND ($2::text = '' OR (r.created_at, r.id) > (SELECT created_at, id FROM runs WHERE id = NULLIF($2::text, '')::uuid))
+			ORDER BY r.created_at, r.id
+			LIMIT $3`, id, cursor, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var run summary
+			if err := rows.Scan(&run.ID, &run.Label, &run.State, &run.CreatedAt); err != nil {
+				return err
+			}
+			items = append(items, run)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var last string
+	if n := len(items); n > 0 {
+		last = items[n-1].ID
+	}
+	writeJSON(w, http.StatusOK, page{Items: items, NextCursor: nextCursor(len(items), limit, last)})
+}
+
 // transitionRun advances the run state machine. Transitioning to "signed" is
 // an electronic signature: reason carries its meaning (§11.50(a)(3)).
 //

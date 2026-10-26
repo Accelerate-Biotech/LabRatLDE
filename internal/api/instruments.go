@@ -58,6 +58,59 @@ func (s *Server) createInstrument(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, in)
 }
 
+// listInstruments pages through instruments in name order (name is unique per
+// tenant). The cursor is the id of the last instrument on the previous page.
+//
+//	GET /v1/instruments?cursor=<uuid>&limit=<1..200>
+func (s *Server) listInstruments(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	cursor, limit, err := readPage(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	type summary struct {
+		ID        string         `json:"id"`
+		NodeID    string         `json:"node_id"`
+		Name      string         `json:"name"`
+		Kind      string         `json:"kind"`
+		Attrs     map[string]any `json:"attrs"`
+		CreatedAt time.Time      `json:"created_at"`
+	}
+	items := []summary{}
+	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT id, node_id, name, kind, attrs, created_at FROM instruments
+			WHERE ($1::text = '' OR name > (SELECT name FROM instruments WHERE id = NULLIF($1::text, '')::uuid))
+			ORDER BY name
+			LIMIT $2`, cursor, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var in summary
+			if err := rows.Scan(&in.ID, &in.NodeID, &in.Name, &in.Kind, &in.Attrs, &in.CreatedAt); err != nil {
+				return err
+			}
+			if in.Attrs == nil {
+				in.Attrs = map[string]any{}
+			}
+			items = append(items, in)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var last string
+	if n := len(items); n > 0 {
+		last = items[n-1].ID
+	}
+	writeJSON(w, http.StatusOK, page{Items: items, NextCursor: nextCursor(len(items), limit, last)})
+}
+
 // streamReadings ingests an NDJSON stream of readings from an instrument.
 //
 //	POST /v1/instruments/{id}/stream?run_id=<uuid>&label=<text>
