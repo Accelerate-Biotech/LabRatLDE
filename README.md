@@ -285,6 +285,22 @@ make build              # ./bin/labrat, static, CGO-free
 make image              # distroless/static container, nonroot
 ```
 
+### Traceability report and install checks
+
+```bash
+go run ./cmd/server iq                      # IQ: migrations, RLS, integrity triggers, lde_app role, binary SHA-256
+make validate OPERATOR="J. Doe"             # full suite against the database -> traceability report in validation/<timestamp>/
+cd validation/<timestamp> && sha256sum -c report.sha256
+```
+
+`labrat iq` is read-only and exits non-zero, printing each failure, if any check fails. `make validate` needs Postgres
+(`make up`). It writes `report.md` (traceability matrix, environment, blank sign-off table), `report.json` and
+`report.sha256`. The run fails, and the report says why, if any `Test: yes` requirement in an Approved or Implemented
+spec has no passing test, if a test cites an unknown requirement, or if `go test` fails. Only a report from a clean,
+committed tree should be kept as evidence; a dirty tree is stamped `NOT FOR FILING`. Either way this is
+test-traceability evidence, not a validation package: a regulatory filing also needs a risk assessment, approved
+IQ/OQ protocols and the Part 11 features still on the roadmap (identity, roles, e-signatures).
+
 Configuration is environment-only; see [`.env.example`](.env.example).
 
 ---
@@ -366,11 +382,12 @@ honest stubs. Do not use for regulated work yet.
 | §11.200 signature re-authentication | 🔜 needs OIDC step-up |
 | External anchoring of chain heads (RFC 3161 / transparency log) | 🔜 roadmap |
 | Bulk data export formats and archival storage | ❓ architecture not decided; needs a spec |
+| Traceability report (`make validate`) and install checks (`labrat iq`) | ✅ implemented (SPEC-004); evidence only, not a validation package |
+| Validation documentation (risk assessment, IQ/OQ protocols, expected vs actual results) | 🔜 roadmap (SPEC-020) |
 | Web UI (core; stack decided in SPEC-005) | 🔜 roadmap |
 
 The phased plan, design decisions and reserved spec numbers are in
 [`specs/ROADMAP.md`](specs/ROADMAP.md).
-| Validation package (IQ/OQ templates, traceability matrix) | 🔜 roadmap |
 
 ---
 

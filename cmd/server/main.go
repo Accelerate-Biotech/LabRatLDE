@@ -22,7 +22,11 @@ import (
 var version = "dev"
 
 func main() {
-	if err := run(); err != nil {
+	do := run
+	if len(os.Args) > 1 && os.Args[1] == "iq" {
+		do = func() error { return runIQ(os.Args[2:]) }
+	}
+	if err := do(); err != nil {
 		fmt.Fprintln(os.Stderr, "labrat:", err)
 		os.Exit(1)
 	}

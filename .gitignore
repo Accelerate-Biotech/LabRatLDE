@@ -1,4 +1,5 @@
 /bin/
+/validation/
 *.test
 *.out
 coverage.*

@@ -1,7 +1,8 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 TEST_DB ?= postgres://lde:lde@localhost:5432/lde?sslmode=disable
+OPERATOR ?=
 
-.PHONY: build run test test-integration vet up down image verify-chain
+.PHONY: build run test test-integration validate vet up down image verify-chain
 
 build: ## Static binary in ./bin
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$(VERSION)" -o bin/labrat ./cmd/server
@@ -14,6 +15,9 @@ test: ## Unit tests (no database)
 
 test-integration: ## Unit + database guarantees (needs `make up`)
 	LDE_TEST_DATABASE_URL="$(TEST_DB)" go test -count=1 ./...
+
+validate: ## OQ: run the suite against the database and write a stamped traceability report
+	LDE_TEST_DATABASE_URL="$(TEST_DB)" go run ./tools/validate --operator "$(OPERATOR)"
 
 vet:
 	go vet ./...
