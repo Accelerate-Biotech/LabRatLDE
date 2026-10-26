@@ -16,7 +16,7 @@ No migrations, no schema changes, and no tests: the spec has no `Test: yes` requ
     - Don't touch `Digest`, `Append`, `VerifyTenant` or any migration.
   - Verify: `make test-integration` passes. Create an experiment, then `curl '…/v1/audit/events?entity_type=experiment&entity_id=<id>'` returns only its `experiment.created` event. Giving only `entity_type` is 400. `make verify-chain` still passes.
   - Integrity: yes
-- [ ] 1.2 Page helper and `GET /v1/experiments`
+- [x] 1.2 Page helper and `GET /v1/experiments`
   - Requirements: SPEC-005-R10
   - Files: `internal/api/server.go`, `internal/api/experiments.go`
   - Do:

@@ -76,6 +76,54 @@ func (s *Server) createExperiment(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, exp)
 }
 
+// listExperiments pages through experiments in slug order (slug is unique).
+// The cursor is the id of the last experiment on the previous page.
+//
+//	GET /v1/experiments?cursor=<uuid>&limit=<1..200>
+func (s *Server) listExperiments(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	cursor, limit, err := readPage(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	type summary struct {
+		ID        string    `json:"id"`
+		Slug      string    `json:"slug"`
+		Title     string    `json:"title"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	items := []summary{}
+	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT id, slug, title, created_at FROM experiments
+			WHERE ($1::text = '' OR slug > (SELECT slug FROM experiments WHERE id = NULLIF($1::text, '')::uuid))
+			ORDER BY slug
+			LIMIT $2`, cursor, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var e summary
+			if err := rows.Scan(&e.ID, &e.Slug, &e.Title, &e.CreatedAt); err != nil {
+				return err
+			}
+			items = append(items, e)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var last string
+	if n := len(items); n > 0 {
+		last = items[n-1].ID
+	}
+	writeJSON(w, http.StatusOK, page{Items: items, NextCursor: nextCursor(len(items), limit, last)})
+}
+
 func (s *Server) getExperiment(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	id := r.PathValue("id")

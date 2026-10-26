@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,7 @@ func (s *Server) Handler() http.Handler {
 
 	v1 := http.NewServeMux()
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
+	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
 	v1.HandleFunc("POST /v1/experiments/{id}/protocol-versions", s.createProtocolVersion)
 	v1.HandleFunc("GET /v1/experiments/{id}/protocol-versions", s.listProtocolVersions)
@@ -163,6 +165,38 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// page is the envelope for every list endpoint. NextCursor is the id of the
+// last item, or null when the page is not full (no more rows).
+type page struct {
+	Items      any     `json:"items"`
+	NextCursor *string `json:"next_cursor"`
+}
+
+// readPage parses ?cursor=<uuid>&limit=<1..200>. Limit defaults to 50.
+func readPage(r *http.Request) (cursor string, limit int, err error) {
+	q := r.URL.Query()
+	limit = 50
+	if q.Has("limit") {
+		n, convErr := strconv.Atoi(q.Get("limit"))
+		if convErr != nil || n < 1 || n > 200 {
+			return "", 0, badRequest("limit must be 1..200")
+		}
+		limit = n
+	}
+	cursor = q.Get("cursor")
+	if cursor != "" && !validUUID(cursor) {
+		return "", 0, badRequest("cursor must be a uuid")
+	}
+	return cursor, limit, nil
+}
+
+func nextCursor(n, limit int, lastID string) *string {
+	if n == limit {
+		return &lastID
+	}
+	return nil
 }
 
 type httpError struct {
