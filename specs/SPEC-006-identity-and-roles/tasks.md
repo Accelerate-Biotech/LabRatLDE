@@ -178,7 +178,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Files: `internal/api/principals.go` (new), `internal/api/server.go`
   - Do: `/v1/me` as in design §2. `/v1/meta` adds `idle_timeout_seconds` and, in prod, `oidc`.
   - Verify: `curl` `/v1/me` with dev headers shows four roles and `auth: "dev"`. `/v1/meta` shows `idle_timeout_seconds: 900`.
-- [ ] 4.2 Principals endpoints
+- [x] 4.2 Principals endpoints
   - Requirements: SPEC-006-R03, SPEC-006-R04, SPEC-006-R05
   - Files: `internal/api/principals.go`, `internal/api/server.go`
   - Do:
