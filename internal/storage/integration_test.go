@@ -836,3 +836,40 @@ func TestRoleGatesOnLabRecords(t *testing.T) {
 	wantCode(t, "bot for alice creates a node", addNode(botForAlice), "")
 	wantCode(t, "bot for alice signs", sign(botForAlice, run2), storage.CodeRoleDenied)
 }
+
+// SPEC-006-R06: signing is the only change a reviewer may make.
+func TestSigningChangesNothingElse(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	bob := newPrincipal(t, db, tenant, "bob", "human", "reviewer")
+
+	runs := make([]string, 3)
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "sign-only")
+		pv, _ := newProtocolVersion(t, tx, tenant, exp, 1, "# p\n")
+		for i := range runs {
+			var err error
+			if runs[i], err = insertRun(tx, tenant, exp, pv); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(ctx, `UPDATE runs SET state = 'completed'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exec := func(as storage.Principal, stmt, run string) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, stmt, run)
+			return err
+		})
+	}
+	const signAndEdit = `UPDATE runs SET state = 'signed', params = '{"tampered": true}' WHERE id = $1`
+	const signOnly = `UPDATE runs SET state = 'signed', started_at = started_at, finished_at = finished_at WHERE id = $1`
+	wantCode(t, "bob (reviewer) signs and edits params", exec(bob, signAndEdit, runs[0]), storage.CodeRoleDenied)
+	wantCode(t, "it@lab (scientist and reviewer) signs and edits params", exec(as(tenant), signAndEdit, runs[1]), "")
+	wantCode(t, "bob (reviewer) signs, rewriting unchanged columns", exec(bob, signOnly, runs[2]), "")
+}
