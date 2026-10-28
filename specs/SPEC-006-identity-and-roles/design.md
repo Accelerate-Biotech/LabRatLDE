@@ -29,7 +29,7 @@ Requirements: [requirements.md](requirements.md)
 - Audit in the same transaction: a deferred constraint trigger on each of the three tables fails the commit with `LDE02` unless the transaction appended the matching event (`entity_type` `principal`, `role_grant` or `agent_delegation`; `entity_id` the row id; the event row's `xmin` is the current transaction). Insert expects `principal.created`, `role.granted` or `delegation.created`. Update expects `principal.disabled`/`principal.enabled`, `role.revoked` or `delegation.ended`. This binds the owner too.
 - Lab-record gates (R06): statement-level triggers on `experiments`, `protocol_versions`, `lineage_nodes`, `lineage_edges`, `instruments` and `instrument_readings` call `lde_require_role('scientist')`. A row-level trigger on `runs` calls `lde_require_role('reviewer', 'qa')` for an update into `signed`, and `lde_require_role('scientist')` for everything else.
 - New SQLSTATE `LDE05` = role denied, mapped to `403`. `LDE03` and `23514` (check violation) are newly mapped to `409` and `400`.
-- Migrations: `0006_principals`, `0007_role_grants`, `0008_agent_delegations`, `0009_role_gates`. `0008` replaces `lde_has_role` to add the agent rule; until then agents hold nothing.
+- Migrations: `0006_principals`, `0007_role_grants`, `0008_agent_delegations`, `0009_role_gates`, `0010_sign_only_state`. `0008` replaces `lde_has_role` to add the agent rule; until then agents hold nothing.
 
 ### Go
 
@@ -47,12 +47,12 @@ Requirements: [requirements.md](requirements.md)
 
 ### Config
 
-`LDE_OIDC_ISSUER`, `LDE_OIDC_AUDIENCE` (both required in prod), `LDE_OIDC_TENANT_CLAIM` (default `lde_tenant`), `LDE_OIDC_UI_CLIENT_ID`, `LDE_OIDC_UI_SCOPES` (default `openid profile email`), `LDE_UI_IDLE_TIMEOUT` (default `15m`).
+`LDE_OIDC_ISSUER`, `LDE_OIDC_AUDIENCE` (both required in prod), `LDE_OIDC_TENANT_CLAIM` (default `lde_tenant`), `LDE_OIDC_UI_CLIENT_ID`, `LDE_OIDC_UI_SCOPES` (default `openid profile email`), `LDE_UI_IDLE_TIMEOUT` (default `15m`, at least `1m`).
 
 ### API
 
-- `GET /v1/me`: `{id, kind, handle, display_name, email, tenant_id, actor, on_behalf_of, roles: [{id, role, scope, granted_at}], auth: "dev"|"oidc"}`.
-- `GET /v1/principals` (paged by handle): principals, each with their active `roles`. `POST /v1/principals` `{kind, handle, display_name, email, issuer, subject, reason}`. `POST /v1/principals/{id}/disable` `{reason}`.
+- `GET /v1/me`: the full principal (`id, tenant_id, kind, handle, display_name, email, issuer, subject, enabled, created_at`) with its active `roles` (full role-grant rows), plus `actor`, `on_behalf_of` (the human's handle or null) and `auth: "dev"|"oidc"`.
+- `GET /v1/principals` (paged by handle): principals in the same shape as `/v1/me`, without `actor`, `on_behalf_of` and `auth`. `POST /v1/principals` `{kind, handle, display_name, email, issuer, subject, reason}`, where reason is required. `POST /v1/principals/{id}/disable` `{reason}`; disabling yourself is `400`.
 - `POST /v1/role-grants` `{principal_id, role, scope, reason}`. `POST /v1/role-grants/{id}/revoke` `{reason}`.
 - `GET /v1/agent-delegations` (active ones), `POST /v1/agent-delegations` `{agent_id, human_id, reason}`, `POST /v1/agent-delegations/{id}/end` `{reason}`.
 - `GET /v1/meta` (unauthenticated) adds `idle_timeout_seconds` and, in prod, `oidc: {issuer, client_id, scopes}`.
@@ -90,4 +90,9 @@ Requirements: [requirements.md](requirements.md)
 | 2026-10-28 | `bootstrap-admin` creates the tenant if absent | Prod has no other way to create a tenant yet | A separate `create-tenant` command |
 | 2026-10-28 | API tests mint RS256 JWTs with `crypto/rsa` and verify with `oidc.StaticKeySet` | No direct dependency on a JOSE library for ~20 lines of test code | Adding `go-jose` directly |
 | 2026-10-28 | `go-oidc` v3.21.0 raises the `go` directive to 1.25 and the Dockerfile build image to `golang:1.25-alpine`; `go-jose/v4` arrives as an indirect dependency | go-oidc v3.21 needs Go 1.25; CI already reads the version from `go.mod` | Pinning an older go-oidc |
+| 2026-10-28 | Verifier round 1: signing may change only `state` (`0010`) | A reviewer could otherwise rewrite params, times or links in the statement that signs, which R06 forbids | Trusting the API's `transitionRun` |
+| 2026-10-28 | UI sign-out also ends the IdP session (`end_session_endpoint`, with `id_token_hint`), when the IdP advertises one | Bench computers are shared; otherwise the next person's sign-in goes straight through as the last user | Discarding only LabRat's in-memory token |
+| 2026-10-28 | An admin can't disable themselves (`400`) | Stops the last admin locking the tenant out by mistake; another admin, or `bootstrap-admin` after revocation, can | No guard |
+| 2026-10-28 | `LDE_UI_IDLE_TIMEOUT` must be at least `1m` | A seconds-long timeout signs users out mid-task; it's a config mistake, so the server refuses to start | Accepting any duration |
+| 2026-10-28 | `/v1/me` and `/v1/principals` return full principal and grant rows | The admin screens need `enabled`, issuer and subject, and the grant ids, reasons and grantors; one shape serves both | Trimmed views per endpoint |
 | 2026-10-28 | `GET /v1/agent-delegations` added, and `GET /v1/principals` includes active roles | The admin screens need to list what they change, and the UI only calls public endpoints | Separate role-grant listing endpoint |

@@ -119,6 +119,9 @@ func (s *Server) createPrincipal(w http.ResponseWriter, r *http.Request) {
 	case strings.TrimSpace(req.Issuer) == "" || strings.TrimSpace(req.Subject) == "":
 		s.fail(w, r, badRequest("issuer and subject are required"))
 		return
+	case strings.TrimSpace(req.Reason) == "":
+		s.fail(w, r, badRequest("reason is required"))
+		return
 	}
 	var out principalWithRoles
 	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
