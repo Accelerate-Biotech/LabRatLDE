@@ -549,3 +549,31 @@ func TestRunProtocolPinIsImmutable(t *testing.T) {
 	_, err = db.Pool.Exec(ctx, `UPDATE runs SET state = 'running' WHERE id = $1`, runID)
 	wantCode(t, "owner starts run without touching the pin", err, "")
 }
+
+// insertPrincipal takes tenant, kind and handle; the subject is the handle.
+const insertPrincipal = `INSERT INTO principals (tenant_id, kind, handle, issuer, subject)
+	VALUES ($1, $2, $3, 'https://idp.test', $3) RETURNING id`
+
+// SPEC-006-R04
+func TestPrincipalHandlesUniqueAndImmutable(t *testing.T) {
+	db := openTestDB(t)
+	t1, t2 := newTenant(t, db), newTenant(t, db)
+	ctx := context.Background()
+	var alice string
+	if err := db.Pool.QueryRow(ctx, insertPrincipal, t1, "human", "alice").Scan(&alice); err != nil {
+		t.Fatal(err)
+	}
+	_, err := db.Pool.Exec(ctx, `INSERT INTO principals (tenant_id, kind, handle, issuer, subject)
+		VALUES ($1, 'human', 'alice', 'https://idp.test', 'alice-2')`, t1)
+	wantCode(t, "second alice in T1", err, "23505")
+	_, err = db.Pool.Exec(ctx, insertPrincipal, t2, "human", "alice")
+	wantCode(t, "alice in T2", err, "")
+	for _, stmt := range []string{
+		`UPDATE principals SET handle = 'al' WHERE id = $1`,
+		`UPDATE principals SET subject = 'x' WHERE id = $1`,
+		`DELETE FROM principals WHERE id = $1`,
+	} {
+		_, err := db.Pool.Exec(ctx, stmt, alice)
+		wantCode(t, stmt, err, storage.CodeAppendOnly)
+	}
+}
