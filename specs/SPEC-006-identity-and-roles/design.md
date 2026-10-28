@@ -89,4 +89,5 @@ Requirements: [requirements.md](requirements.md)
 | 2026-10-28 | `LDE_OIDC_UI_SCOPES` added | Entra and others only issue an access token for the API's audience when asked for its scope | A fixed scope list |
 | 2026-10-28 | `bootstrap-admin` creates the tenant if absent | Prod has no other way to create a tenant yet | A separate `create-tenant` command |
 | 2026-10-28 | API tests mint RS256 JWTs with `crypto/rsa` and verify with `oidc.StaticKeySet` | No direct dependency on a JOSE library for ~20 lines of test code | Adding `go-jose` directly |
+| 2026-10-28 | `go-oidc` v3.21.0 raises the `go` directive to 1.25 and the Dockerfile build image to `golang:1.25-alpine`; `go-jose/v4` arrives as an indirect dependency | go-oidc v3.21 needs Go 1.25; CI already reads the version from `go.mod` | Pinning an older go-oidc |
 | 2026-10-28 | `GET /v1/agent-delegations` added, and `GET /v1/principals` includes active roles | The admin screens need to list what they change, and the UI only calls public endpoints | Separate role-grant listing endpoint |

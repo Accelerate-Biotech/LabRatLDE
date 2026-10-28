@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
+
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/api"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/config"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/storage"
@@ -65,9 +67,23 @@ func run() error {
 		log.Info("dev tenant ready", "tenant_id", config.DevTenantID)
 	}
 
+	var verifier api.TokenVerifier
+	if cfg.Env == "prod" {
+		discoverCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		provider, err := oidc.NewProvider(discoverCtx, cfg.OIDCIssuer)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("oidc discovery for %s: %w", cfg.OIDCIssuer, err)
+		}
+		// The verifier caches the issuer's JWKS for the life of the process,
+		// refetching (on a background context) when it sees an unknown key id.
+		verifier = provider.Verifier(&oidc.Config{ClientID: cfg.OIDCAudience})
+		log.Info("oidc ready", "issuer", cfg.OIDCIssuer, "audience", cfg.OIDCAudience)
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           api.New(cfg, db, log).Handler(),
+		Handler:           api.New(cfg, db, log, verifier).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		// No Read/WriteTimeout: instrument streams are long-lived by

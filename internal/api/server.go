@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/config"
@@ -25,14 +26,21 @@ import (
 
 const maxJSONBody = 1 << 20
 
-type Server struct {
-	cfg config.Config
-	db  *storage.DB
-	log *slog.Logger
+// TokenVerifier checks a bearer JWT's signature, issuer, audience and expiry.
+// *oidc.IDTokenVerifier satisfies it.
+type TokenVerifier interface {
+	Verify(ctx context.Context, rawToken string) (*oidc.IDToken, error)
 }
 
-func New(cfg config.Config, db *storage.DB, log *slog.Logger) *Server {
-	return &Server{cfg: cfg, db: db, log: log}
+type Server struct {
+	cfg      config.Config
+	db       *storage.DB
+	log      *slog.Logger
+	verifier TokenVerifier // nil in dev
+}
+
+func New(cfg config.Config, db *storage.DB, log *slog.Logger, verifier TokenVerifier) *Server {
+	return &Server{cfg: cfg, db: db, log: log, verifier: verifier}
 }
 
 // Handler returns the fully wired router.

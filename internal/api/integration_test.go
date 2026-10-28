@@ -82,7 +82,7 @@ func TestRunPinsProtocolVersion(t *testing.T) {
 	if err := db.EnsureTenant(ctx, tenant, "t-"+tenant[:8], "test"); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(api.New(config.Config{Env: "dev"}, db, slog.New(slog.NewTextHandler(io.Discard, nil))).Handler())
+	srv := httptest.NewServer(api.New(config.Config{Env: "dev"}, db, slog.New(slog.NewTextHandler(io.Discard, nil)), nil).Handler())
 	defer srv.Close()
 
 	var exp struct {

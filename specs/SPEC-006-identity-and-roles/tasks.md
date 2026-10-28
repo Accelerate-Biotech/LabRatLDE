@@ -107,7 +107,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Revoke, SetEnabled and EndDelegation return `pgx.ErrNoRows` when no row matched.
   - Verify: `go build ./...`. `newPrincipal` in the storage tests keeps its own SQL.
   - Integrity: yes
-- [ ] 2.2 Config and the `go-oidc` dependency
+- [x] 2.2 Config and the `go-oidc` dependency
   - Requirements: SPEC-006-R01
   - Files: `internal/config/config.go`, `go.mod`, `go.sum`, `cmd/server/main.go`, `internal/api/server.go`, `internal/api/integration_test.go` (call site)
   - Do:
