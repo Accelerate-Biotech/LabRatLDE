@@ -62,8 +62,9 @@ func as(tenant string) storage.Principal {
 }
 
 // newPrincipal creates a principal (subject = handle at https://idp.test)
-// as the owner, with the audit events its rows need.
-func newPrincipal(t *testing.T, db *storage.DB, tenant, handle, kind string) storage.Principal {
+// holding roles, granted by itself, as the owner, with the audit events its
+// rows need.
+func newPrincipal(t *testing.T, db *storage.DB, tenant, handle, kind string, roles ...string) storage.Principal {
 	t.Helper()
 	ctx := context.Background()
 	var p storage.Principal
@@ -75,12 +76,36 @@ func newPrincipal(t *testing.T, db *storage.DB, tenant, handle, kind string) sto
 			Actor: "system:test", Action: "principal.created", EntityType: "principal", EntityID: p.ID,
 			Payload: map[string]any{"handle": handle, "kind": kind},
 		})
+		for _, role := range roles {
+			if err != nil {
+				return err
+			}
+			_, err = grantRole(ctx, tx, tenant, "system:test", p.ID, p.ID, role, "fixture", true)
+		}
 		return err
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// grantRole inserts a tenant-wide grant of role to principalID and, when
+// audited, its role.granted event. As lde_app the trigger replaces grantedBy.
+func grantRole(ctx context.Context, tx pgx.Tx, tenant, actor, principalID, grantedBy, role, reason string, audited bool) (string, error) {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO role_grants (tenant_id, principal_id, role, reason, granted_by)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, tenant, principalID, role, reason, grantedBy).Scan(&id); err != nil {
+		return "", err
+	}
+	if !audited {
+		return id, nil
+	}
+	_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+		Actor: actor, Action: "role.granted", EntityType: "role_grant", EntityID: id, Reason: reason,
+		Payload: map[string]any{"principal_id": principalID, "role": role},
+	})
+	return id, err
 }
 
 func appendN(t *testing.T, db *storage.DB, tenant string, n int) {
@@ -609,4 +634,70 @@ func TestPrincipalHandlesUniqueAndImmutable(t *testing.T) {
 		_, err := db.Pool.Exec(ctx, stmt, alice)
 		wantCode(t, stmt, err, storage.CodeAppendOnly)
 	}
+}
+
+// SPEC-006-R05
+func TestRoleGrantsAdminOnlyAndAudited(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+
+	err := db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "alice", alice.ID, alice.ID, "reviewer", "self", true)
+		return err
+	})
+	wantCode(t, "alice grants herself reviewer", err, storage.CodeRoleDenied)
+
+	var grant string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) (err error) {
+		grant, err = grantRole(ctx, tx, tenant, "carol", alice.ID, alice.ID, "reviewer", "cover for bob", true)
+		return err
+	})
+	wantCode(t, "carol grants alice reviewer", err, "")
+	var grantedBy, action, reason string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT g.granted_by::text, a.action, a.reason FROM role_grants g
+			JOIN audit_events a ON a.entity_type = 'role_grant' AND a.entity_id = g.id::text
+			WHERE g.id = $1`, grant).Scan(&grantedBy, &action, &reason)
+	})
+	if err != nil || grantedBy != carol.ID || action != "role.granted" || reason != "cover for bob" {
+		t.Errorf("grant: granted_by %s (carol %s), event %q %q, err %v", grantedBy, carol.ID, action, reason, err)
+	}
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "carol", alice.ID, carol.ID, "qa", "no event", false)
+		return err
+	})
+	wantCode(t, "grant with no audit event", err, storage.CodeAuditLink)
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "carol", alice.ID, carol.ID, "qa", " ", true)
+		return err
+	})
+	wantCode(t, "grant with blank reason", err, "23514")
+
+	revoke := func() error {
+		return db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE role_grants SET revoked_by = $2, revoked_at = now(), revoke_reason = 'bob is back'
+				WHERE id = $1`, grant, alice.ID); err != nil {
+				return err
+			}
+			_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+				Actor: "carol", Action: "role.revoked", EntityType: "role_grant", EntityID: grant, Reason: "bob is back",
+			})
+			return err
+		})
+	}
+	wantCode(t, "carol revokes", revoke(), "")
+	var revokedBy string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT revoked_by::text FROM role_grants WHERE id = $1`, grant).Scan(&revokedBy)
+	})
+	if err != nil || revokedBy != carol.ID {
+		t.Errorf("revoked_by %s, want carol %s (err %v)", revokedBy, carol.ID, err)
+	}
+	wantCode(t, "carol revokes again", revoke(), storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, `DELETE FROM role_grants WHERE id = $1`, grant)
+	wantCode(t, "owner deletes grant", err, storage.CodeAppendOnly)
 }

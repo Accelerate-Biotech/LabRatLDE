@@ -36,7 +36,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Storage tests: `newTenant` also creates principal `it@lab` (as the owner, with its `principal.created` event) and records it in a package-level `sync.Map`. `as(tenant) storage.Principal` returns it, and every `db.WithTenant(ctx, x, func` becomes `db.WithTenant(ctx, x, as(x), func`.
   - Verify: `make test-integration` passes.
   - Integrity: yes
-- [ ] 1.4 Test: role grants are admin-only, audited and revoked once (SPEC-006-R05)
+- [x] 1.4 Test: role grants are admin-only, audited and revoked once (SPEC-006-R05)
   - Requirements: SPEC-006-R05
   - Files: `internal/storage/integration_test.go`
   - Do:
