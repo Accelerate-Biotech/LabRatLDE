@@ -128,7 +128,12 @@ func SetEnabled(ctx context.Context, tx pgx.Tx, actor, tenantID, id string, enab
 	return p, err
 }
 
-// ByHandle and BySubject return pgx.ErrNoRows when there is no such principal.
+// ByID, ByHandle and BySubject return pgx.ErrNoRows when there is no such
+// principal.
+func ByID(ctx context.Context, tx pgx.Tx, id string) (Principal, error) {
+	return scanPrincipal(tx.QueryRow(ctx, `SELECT `+principalColumns+` FROM principals WHERE id = $1`, id))
+}
+
 func ByHandle(ctx context.Context, tx pgx.Tx, handle string) (Principal, error) {
 	return scanPrincipal(tx.QueryRow(ctx, `SELECT `+principalColumns+` FROM principals WHERE handle = $1`, handle))
 }

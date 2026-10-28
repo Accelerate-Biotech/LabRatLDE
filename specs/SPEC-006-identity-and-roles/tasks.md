@@ -173,7 +173,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 4: Admin API and bootstrap
 
-- [ ] 4.1 `GET /v1/me` and `GET /v1/meta`
+- [x] 4.1 `GET /v1/me` and `GET /v1/meta`
   - Requirements: SPEC-006-R10, SPEC-006-R11 (UI support)
   - Files: `internal/api/principals.go` (new), `internal/api/server.go`
   - Do: `/v1/me` as in design §2. `/v1/meta` adds `idle_timeout_seconds` and, in prod, `oidc`.

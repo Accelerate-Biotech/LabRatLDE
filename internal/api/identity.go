@@ -19,6 +19,8 @@ type Principal struct {
 	As     storage.Principal // who WithTenant acts as
 	Handle string
 	Kind   string
+	// ForHandle is the human an agent acts for; "" otherwise.
+	ForHandle string
 }
 
 type principalKey struct{}
@@ -184,6 +186,7 @@ func (s *Server) resolve(r *http.Request, tenant string, lookup func(context.Con
 	if who.Kind == "agent" {
 		p.Actor = human.Handle + " via " + who.Handle
 		p.As.OnBehalfOf = human.ID
+		p.ForHandle = human.Handle
 	}
 	return p, nil
 }

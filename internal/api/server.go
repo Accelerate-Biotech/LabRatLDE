@@ -46,11 +46,13 @@ func New(cfg config.Config, db *storage.DB, log *slog.Logger, verifier TokenVeri
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
-	// Outside identify: the UI reads this before sign-in, and in prod identify
-	// refuses every request until OIDC is wired.
+	// Outside identify: the UI reads this before sign-in, to learn where to
+	// sign in.
 	mux.HandleFunc("GET /v1/meta", s.meta)
 
 	v1 := http.NewServeMux()
+	v1.HandleFunc("GET /v1/me", s.getMe)
+
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
 	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
@@ -89,8 +91,23 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// meta is public: the environment, the UI idle timeout and, in prod, the
+// OIDC settings the UI signs in with.
 func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"env": s.cfg.Env})
+	type oidcMeta struct {
+		Issuer   string `json:"issuer"`
+		ClientID string `json:"client_id"`
+		Scopes   string `json:"scopes"`
+	}
+	m := struct {
+		Env                string    `json:"env"`
+		IdleTimeoutSeconds int       `json:"idle_timeout_seconds"`
+		OIDC               *oidcMeta `json:"oidc,omitempty"`
+	}{Env: s.cfg.Env, IdleTimeoutSeconds: int(s.cfg.UIIdleTimeout.Seconds())}
+	if s.cfg.Env == "prod" {
+		m.OIDC = &oidcMeta{Issuer: s.cfg.OIDCIssuer, ClientID: s.cfg.OIDCUIClientID, Scopes: s.cfg.OIDCUIScopes}
+	}
+	writeJSON(w, http.StatusOK, m)
 }
 
 var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
