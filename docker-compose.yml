@@ -2,6 +2,7 @@
 #
 #   docker compose up -d                  # Postgres; run the server with `go run ./cmd/server`
 #   docker compose --profile full up -d   # ...and the containerised server too
+#   docker compose --profile idp up -d    # a local Keycloak for LDE_ENV=prod (tools/keycloak/README.md)
 #
 # Credentials here are for local development only.
 
@@ -34,6 +35,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  # Test identity provider. Not persisted: every start re-imports the realm.
+  keycloak:
+    profiles: ["idp"]
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: ["start-dev", "--import-realm", "--http-port", "8081"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./tools/keycloak:/opt/keycloak/data/import:ro
 
 volumes:
   pgdata:
