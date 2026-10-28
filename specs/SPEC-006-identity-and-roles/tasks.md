@@ -11,13 +11,13 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 1: Principals, grants and delegations in the database
 
-- [ ] 1.1 Test: principal handles are unique and immutable (SPEC-006-R04)
+- [x] 1.1 Test: principal handles are unique and immutable (SPEC-006-R04)
   - Requirements: SPEC-006-R04
   - Files: `internal/storage/integration_test.go`
   - Do: `TestPrincipalHandlesUniqueAndImmutable`. As the owner, insert `alice` (human) into a new tenant. Then a second `alice` in the same tenant fails with `23505`, `alice` in another tenant succeeds, and `UPDATE principals SET handle = 'al'`, `UPDATE … SET subject = 'x'` and `DELETE` each fail with `LDE03`. Use `db.Pool.Exec` directly: no audit trigger exists yet.
   - Verify: `make test-integration` fails only on the new test (the `principals` table is missing).
   - Integrity: yes
-- [ ] 1.2 Migration `0006_principals`
+- [x] 1.2 Migration `0006_principals`
   - Requirements: SPEC-006-R04
   - Files: `internal/storage/migrations/0006_principals.sql`
   - Do:
