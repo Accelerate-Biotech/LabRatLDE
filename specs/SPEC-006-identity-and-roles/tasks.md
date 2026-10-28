@@ -205,7 +205,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 5: UI
 
-- [ ] 5.1 API client: bearer tokens and identity endpoints
+- [x] 5.1 API client: bearer tokens and identity endpoints
   - Requirements: SPEC-006-R11 (support)
   - Files: `web/src/api.ts`
   - Do:
