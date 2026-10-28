@@ -25,8 +25,13 @@ var version = "dev"
 
 func main() {
 	do := run
-	if len(os.Args) > 1 && os.Args[1] == "iq" {
-		do = func() error { return runIQ(os.Args[2:]) }
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "iq":
+			do = func() error { return runIQ(os.Args[2:]) }
+		case "bootstrap-admin":
+			do = func() error { return runBootstrapAdmin(os.Args[2:]) }
+		}
 	}
 	if err := do(); err != nil {
 		fmt.Fprintln(os.Stderr, "labrat:", err)

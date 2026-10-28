@@ -197,7 +197,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Files: `internal/api/principals.go`, `internal/api/server.go`
   - Do: `GET`/`POST /v1/agent-delegations` and `POST /v1/agent-delegations/{id}/end`. The list joins both handles. A human `agent_id` is 400.
   - Verify: create agent `bot` as dev admin, delegate yourself → bot, and a dev request as `bot` with `X-LDE-On-Behalf-Of` succeeds. End it, and it's 403.
-- [ ] 4.5 `labrat bootstrap-admin`
+- [x] 4.5 `labrat bootstrap-admin`
   - Requirements: SPEC-006-R12
   - Files: `cmd/server/bootstrap.go` (new), `cmd/server/main.go`
   - Do: as design §2 "Bootstrap", via `flag.NewFlagSet`. All four required flags are checked before connecting.
