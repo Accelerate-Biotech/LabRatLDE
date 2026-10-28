@@ -774,3 +774,61 @@ func TestAgentRolesIntersectHuman(t *testing.T) {
 	})
 	wantCode(t, "delegation to a human", err, "23514")
 }
+
+// SPEC-006-R06, SPEC-006-R08
+func TestRoleGatesOnLabRecords(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	bob := newPrincipal(t, db, tenant, "bob", "human", "reviewer")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+	bot := newPrincipal(t, db, tenant, "bot", "agent", "scientist", "reviewer")
+
+	// Alice, a scientist, records an experiment with two completed runs.
+	var run1, run2 string
+	err := db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "gates")
+		pv, _ := newProtocolVersion(t, tx, tenant, exp, 1, "# p\n")
+		var err error
+		if run1, err = insertRun(tx, tenant, exp, pv); err != nil {
+			return err
+		}
+		if run2, err = insertRun(tx, tenant, exp, pv); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `UPDATE runs SET state = 'completed'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sign := func(as storage.Principal, run string) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, `UPDATE runs SET state = 'signed' WHERE id = $1`, run)
+			return err
+		})
+	}
+	addNode := func(as storage.Principal) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, insertNode, tenant, "sample")
+			return err
+		})
+	}
+	wantCode(t, "alice (scientist) signs", sign(alice, run1), storage.CodeRoleDenied)
+	wantCode(t, "bob (reviewer) signs", sign(bob, run1), "")
+	wantCode(t, "bob (reviewer) creates a node", addNode(bob), storage.CodeRoleDenied)
+	wantCode(t, "nobody creates a node", addNode(storage.Principal{}), storage.CodeRoleDenied)
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "carol", bot.ID, alice.ID, carol.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	botForAlice := storage.Principal{ID: bot.ID, OnBehalfOf: alice.ID}
+	wantCode(t, "bot for alice creates a node", addNode(botForAlice), "")
+	wantCode(t, "bot for alice signs", sign(botForAlice, run2), storage.CodeRoleDenied)
+}

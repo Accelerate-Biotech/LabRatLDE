@@ -151,7 +151,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 3: Role gates
 
-- [ ] 3.1 Test: role gates on lab records (SPEC-006-R06, SPEC-006-R08)
+- [x] 3.1 Test: role gates on lab records (SPEC-006-R06, SPEC-006-R08)
   - Requirements: SPEC-006-R06, SPEC-006-R08
   - Files: `internal/storage/integration_test.go`
   - Do: `TestRoleGatesOnLabRecords`, with alice (scientist), bob (reviewer), carol (admin) and bot (agent; scientist, reviewer).
