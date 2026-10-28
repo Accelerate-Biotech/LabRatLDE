@@ -220,7 +220,7 @@ liquid handlers, and whatever your automation cell emits next.
 
 ## Quickstart
 
-**Prerequisites:** Go 1.22+, Docker. Node 22 only if you build the web UI. (`jq` for the walkthrough.)
+**Prerequisites:** Go 1.25+, Docker. Node 22 only if you build the web UI. (`jq` for the walkthrough.)
 
 ```bash
 git clone https://github.com/Accelerate-Biotech/LabRatLDE.git
@@ -233,7 +233,7 @@ go run cmd/server/main.go            # migrates, seeds a dev tenant, listens on 
 curl -s localhost:8080/healthz       # {"status":"ok"}
 ```
 
-The web UI is at http://localhost:8080/. In dev it asks for a tenant and an actor name; sign-in is a placeholder until SPEC-006.
+The web UI is at http://localhost:8080/. In dev it asks for a tenant and a handle, and a new handle gets every role. In prod it signs in through your OIDC identity provider; see [docs/identity.md](docs/identity.md).
 
 > Prefer containers end to end? `docker compose --profile full up -d --build`.
 
@@ -304,7 +304,7 @@ cd validation/<timestamp> && sha256sum -c report.sha256
 spec has no passing test, if a test cites an unknown requirement, or if `go test` fails. Only a report from a clean,
 committed tree should be kept as evidence; a dirty tree is stamped `NOT FOR FILING`. Either way this is
 test-traceability evidence, not a validation package: a regulatory filing also needs a risk assessment, approved
-IQ/OQ protocols and the Part 11 features still on the roadmap (identity, roles, e-signatures).
+IQ/OQ protocols and the Part 11 features still on the roadmap (e-signatures).
 
 Configuration is environment-only; see [`.env.example`](.env.example).
 
@@ -328,6 +328,12 @@ Configuration is environment-only; see [`.env.example`](.env.example).
 | `GET`  | `/v1/audit/events` | Page the chain; `?after=<seq>&limit=<n>` |
 | `GET`  | `/v1/audit/export.ndjson` | Full chain for offline verification |
 | `GET`  | `/v1/audit/verify` | Engine + database verification, side by side |
+| `GET`  | `/v1/meta` | Environment and sign-in settings (no auth) |
+| `GET`  | `/v1/me` | The caller, who an agent acts for, and their roles |
+| `GET`/`POST` | `/v1/principals` | List or provision principals (admin) |
+| `POST` | `/v1/principals/{id}/disable` | Disable a principal (admin, reason) |
+| `POST` | `/v1/role-grants`, `/v1/role-grants/{id}/revoke` | Grant or revoke a role (admin, reason) |
+| `GET`/`POST` | `/v1/agent-delegations`, `…/{id}/end` | Let an agent act for a human, or stop it (admin, reason) |
 
 Run lifecycle:
 
@@ -350,6 +356,7 @@ planned | running | paused ──► aborted        (requires a reason)
 │   ├── audit/                    # hash-chain core (Seal, Digest, Verifier) + Postgres binding
 │   ├── config/                   # twelve-factor env config
 │   ├── domain/                   # lineage DAG, PROV relations, run state machine (no I/O)
+│   ├── identity/                 # audited writes of principals, role grants, agent delegations
 │   ├── ingest/                   # NDJSON instrument stream decoder
 │   └── storage/
 │       ├── migrations/           # embedded, forward-only SQL
@@ -383,8 +390,8 @@ honest stubs. Do not use for regulated work yet.
 | Run state machine, sealed signed runs | ✅ implemented; signed and aborted runs seal their node and generated datasets in the DB (SPEC-002) |
 | NDJSON instrument ingest | ✅ implemented |
 | Row-Level Security tenant isolation | ✅ implemented; covered by `make test-integration` |
-| **Authentication** | ⚠️ dev headers only. OIDC required before any real use (`LDE_ENV=prod` refuses to serve without it) |
-| §11.200 signature re-authentication | 🔜 needs OIDC step-up |
+| Authentication, roles and agents (OIDC bearer tokens, DB-enforced role gates; SPEC-006) | ✅ implemented; dev headers only in `LDE_ENV=dev`. See [docs/identity.md](docs/identity.md) |
+| §11.200 signature re-authentication | 🔜 OIDC step-up (SPEC-008) |
 | External anchoring of chain heads (RFC 3161 / transparency log) | 🔜 roadmap |
 | Bulk data export formats and archival storage | ❓ architecture not decided; needs a spec |
 | Traceability report (`make validate`) and install checks (`labrat iq`) | ✅ implemented (SPEC-004); evidence only, not a validation package |

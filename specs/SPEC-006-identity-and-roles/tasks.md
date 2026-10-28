@@ -238,7 +238,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 6: Docs
 
-- [ ] 6.1 README, `.env.example` and `docs/`
+- [x] 6.1 README, `.env.example` and `docs/`
   - Requirements: SPEC-006-R10, SPEC-006-R12
   - Files: `README.md`, `.env.example`, `docs/identity.md` (new)
   - Do:
