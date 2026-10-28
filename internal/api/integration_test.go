@@ -402,3 +402,62 @@ func TestUnknownOrDisabledPrincipal(t *testing.T) {
 		t.Errorf("disabled alice: %d %s, want 403", status, body)
 	}
 }
+
+// delegateAliceToBot has carol delegate alice to bot, as the owner.
+func delegateAliceToBot(t *testing.T, db *storage.DB, f fixture) {
+	t.Helper()
+	ctx := context.Background()
+	err := db.WithOwner(ctx, func(tx pgx.Tx) error {
+		_, err := identity.Delegate(ctx, tx, "carol", f.tenant, f.bot.ID, f.alice.ID, "fixture", f.carol.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var forAlice = map[string]string{"X-LDE-On-Behalf-Of": "alice"}
+
+// SPEC-006-R07
+func TestAgentNeedsDelegation(t *testing.T) {
+	db := openTestDB(t)
+	f := newFixture(t, db)
+	key := newKey(t)
+	srv := prodServer(t, db, key)
+	bot := mintToken(t, key, claims(f.tenant, "bot"))
+
+	check := func(what, token string, headers map[string]string, want int) {
+		t.Helper()
+		if status, body := send(t, srv, token, headers, "GET", "/v1/experiments", nil); status != want {
+			t.Errorf("%s: %d %s, want %d", what, status, body, want)
+		}
+	}
+	check("bot, no delegation, no header", bot, nil, http.StatusForbidden)
+	check("bot, no delegation, for alice", bot, forAlice, http.StatusForbidden)
+	delegateAliceToBot(t, db, f)
+	check("bot, delegated, for alice", bot, forAlice, http.StatusOK)
+	check("bot, delegated, no header", bot, nil, http.StatusForbidden)
+	check("alice naming someone to act for", mintToken(t, key, claims(f.tenant, "alice")),
+		map[string]string{"X-LDE-On-Behalf-Of": "bob"}, http.StatusBadRequest)
+}
+
+// SPEC-006-R09
+func TestAgentActorIsHumanViaAgent(t *testing.T) {
+	db := openTestDB(t)
+	f := newFixture(t, db)
+	key := newKey(t)
+	srv := prodServer(t, db, key)
+	delegateAliceToBot(t, db, f)
+
+	status, body := send(t, srv, mintToken(t, key, claims(f.tenant, "bot")), forAlice, "POST", "/v1/lineage/nodes", sampleNode)
+	if status != http.StatusCreated {
+		t.Fatalf("bot for alice creates a node: %d %s", status, body)
+	}
+	var node struct{ ID string }
+	if err := json.Unmarshal(body, &node); err != nil {
+		t.Fatal(err)
+	}
+	if got := auditActors(t, db, f.tenant, node.ID); len(got) != 1 || got[0] != "alice via bot" {
+		t.Errorf("node events: actors %v, want [alice via bot]", got)
+	}
+}

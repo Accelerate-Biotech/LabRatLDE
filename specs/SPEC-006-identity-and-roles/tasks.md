@@ -136,7 +136,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Set `p.As.ID`, `p.Handle`, `p.Kind` and `p.Actor = handle`.
     - In `fail`, `LDE05` is 403. `storage.IsConflict` adds `LDE03`, and a new `storage.IsInvalid` (`23514`) is 400.
   - Verify: `make test-integration` passes, including 2.3. `curl -i` with dev headers shows `X-LDE-Auth: dev`, and a new actor appears in the audit trail as `principal.created`.
-- [ ] 2.5 Test: agents need a delegation and are audited as "human via agent" (SPEC-006-R07, SPEC-006-R09)
+- [x] 2.5 Test: agents need a delegation and are audited as "human via agent" (SPEC-006-R07, SPEC-006-R09)
   - Requirements: SPEC-006-R07, SPEC-006-R09
   - Files: `internal/api/integration_test.go`
   - Do:
