@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { clearSession, getMe, meta as loadMeta, setAccessToken, setUnauthorizedHandler, storedActor, type Meta } from './api';
-import { completeSignIn, endSessionUrl } from './auth';
+import { completeSignIn, endSessionUrl, watchIdle } from './auth';
 import SignIn from './SignIn';
 import Workspace from './Workspace';
 
@@ -55,6 +55,16 @@ export default function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => signOut('Your session has ended. Sign in again.'));
   }, [signOut]);
+
+  // R11: an unattended session signs itself out, in dev as in prod.
+  const idleSeconds = meta?.idle_timeout_seconds ?? 0;
+  useEffect(() => {
+    if (!session || idleSeconds <= 0) return;
+    const minutes = Math.round(idleSeconds / 60);
+    return watchIdle(idleSeconds, () =>
+      signOut(`Signed out after ${minutes} minute${minutes === 1 ? '' : 's'} of inactivity.`),
+    );
+  }, [session, idleSeconds, signOut]);
 
   if (error) return <p role="alert">Could not reach the server: {error}</p>;
   if (!meta) return <p>Loading…</p>;

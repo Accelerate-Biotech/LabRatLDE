@@ -111,6 +111,22 @@ export async function completeSignIn(oidc: OIDCSettings): Promise<Tokens | null>
   return { accessToken: body.access_token, idToken: body.id_token };
 }
 
+// watchIdle calls onIdle after seconds without a pointer, key or wheel event
+// (SPEC-006-R11). It returns a function that stops watching.
+export function watchIdle(seconds: number, onIdle: () => void): () => void {
+  const events = ['pointerdown', 'keydown', 'wheel'] as const;
+  let timer = window.setTimeout(onIdle, seconds * 1000);
+  const reset = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(onIdle, seconds * 1000);
+  };
+  for (const e of events) window.addEventListener(e, reset, { capture: true, passive: true });
+  return () => {
+    window.clearTimeout(timer);
+    for (const e of events) window.removeEventListener(e, reset, { capture: true });
+  };
+}
+
 // endSessionUrl is where to send the browser to end the IdP session too, or
 // null when the IdP doesn't advertise one.
 export async function endSessionUrl(oidc: OIDCSettings, idToken?: string): Promise<string | null> {

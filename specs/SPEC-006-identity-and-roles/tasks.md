@@ -221,7 +221,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `SignIn` shows an organisation sign-in button in prod and the dev form in dev.
     - `web.Handler(connectSrc ...string)` adds the origins to `connect-src`, and the API passes the issuer's origin.
   - Verify: `npm run build` is clean. `curl -I /` in prod shows the issuer origin in the CSP. In dev, sign-in works as before.
-- [ ] 5.3 Idle timeout
+- [x] 5.3 Idle timeout
   - Requirements: SPEC-006-R11
   - Files: `web/src/auth.ts`, `web/src/App.tsx`
   - Do: as design §3.
