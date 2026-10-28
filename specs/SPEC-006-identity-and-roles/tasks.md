@@ -65,7 +65,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - RLS and policies as `0006`. `GRANT SELECT, INSERT, UPDATE (revoked_by, revoked_at, revoke_reason) ON role_grants TO lde_app`. Execute on the new functions.
   - Verify: `make test-integration` passes, including 1.4.
   - Integrity: yes
-- [ ] 1.6 Test: agents hold only roles shared with their human (SPEC-006-R08)
+- [x] 1.6 Test: agents hold only roles shared with their human (SPEC-006-R08)
   - Requirements: SPEC-006-R08
   - Files: `internal/storage/integration_test.go`
   - Do: `TestAgentRolesIntersectHuman`, with alice (scientist), carol (admin) and bot (agent; scientist, reviewer). `has(as, role)` runs `SELECT lde_has_role($1)` in `WithTenant`.

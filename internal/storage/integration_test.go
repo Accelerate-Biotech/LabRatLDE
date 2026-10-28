@@ -697,3 +697,80 @@ func TestRoleGrantsAdminOnlyAndAudited(t *testing.T) {
 	_, err = db.Pool.Exec(ctx, `DELETE FROM role_grants WHERE id = $1`, grant)
 	wantCode(t, "owner deletes grant", err, storage.CodeAppendOnly)
 }
+
+// delegate inserts a delegation from human to agent, with its
+// delegation.created event, as whoever tx acts as.
+func delegate(ctx context.Context, tx pgx.Tx, tenant, actor, agentID, humanID, createdBy string) (string, error) {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO agent_delegations (tenant_id, agent_id, human_id, reason, created_by)
+		VALUES ($1, $2, $3, 'fixture', $4) RETURNING id`, tenant, agentID, humanID, createdBy).Scan(&id); err != nil {
+		return "", err
+	}
+	_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+		Actor: actor, Action: "delegation.created", EntityType: "agent_delegation", EntityID: id, Reason: "fixture",
+	})
+	return id, err
+}
+
+// SPEC-006-R08
+func TestAgentRolesIntersectHuman(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+	bot := newPrincipal(t, db, tenant, "bot", "agent", "scientist", "reviewer")
+	forAlice := storage.Principal{ID: bot.ID, OnBehalfOf: alice.ID}
+
+	holds := func(what string, as storage.Principal, role string, want bool) {
+		t.Helper()
+		var got bool
+		err := db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT lde_has_role($1)`, role).Scan(&got)
+		})
+		if err != nil || got != want {
+			t.Errorf("%s holds %s = %v, want %v (err %v)", what, role, got, want, err)
+		}
+	}
+	holds("bot for alice, no delegation", forAlice, "scientist", false)
+	holds("bot for alice, no delegation", forAlice, "reviewer", false)
+
+	var id string
+	err := db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) (err error) {
+		id, err = delegate(ctx, tx, tenant, "carol", bot.ID, alice.ID, carol.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	holds("bot for alice", forAlice, "scientist", true)
+	holds("bot for alice", forAlice, "reviewer", false)
+	holds("bot for carol", storage.Principal{ID: bot.ID, OnBehalfOf: carol.ID}, "scientist", false)
+	holds("bot for nobody", storage.Principal{ID: bot.ID}, "scientist", false)
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE agent_delegations SET ended_by = $2, ended_at = now() WHERE id = $1`,
+			id, carol.ID); err != nil {
+			return err
+		}
+		_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+			Actor: "carol", Action: "delegation.ended", EntityType: "agent_delegation", EntityID: id,
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	holds("bot for alice, delegation ended", forAlice, "scientist", false)
+
+	err = db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "alice", bot.ID, alice.ID, alice.ID)
+		return err
+	})
+	wantCode(t, "alice delegates", err, storage.CodeRoleDenied)
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "carol", carol.ID, alice.ID, carol.ID)
+		return err
+	})
+	wantCode(t, "delegation to a human", err, "23514")
+}
