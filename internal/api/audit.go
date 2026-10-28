@@ -26,7 +26,7 @@ func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	events := []audit.Event{}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		add := func(ev audit.Event) error {
 			events = append(events, ev)
 			return nil
@@ -49,7 +49,7 @@ func (s *Server) exportAudit(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	enc := json.NewEncoder(w)
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		return audit.Scan(ctx, tx, p.Tenant, 0, 0, func(ev audit.Event) error { return enc.Encode(ev.Record()) })
 	})
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *Server) verifyAudit(w http.ResponseWriter, r *http.Request) {
 		engine audit.Report
 		db     dbReport
 	)
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) (err error) {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
 		if engine, err = audit.VerifyTenant(ctx, tx, p.Tenant); err != nil {
 			return err
 		}

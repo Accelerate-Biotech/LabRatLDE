@@ -61,7 +61,7 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var run domain.Run
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		var pv protocolVersion
 		err := tx.QueryRow(ctx, `
 			SELECT id, version, encode(sha256, 'hex'), node_id FROM protocol_versions
@@ -137,7 +137,7 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	detail := runDetail{Inputs: []runInput{}, Datasets: []runDataset{}}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) (err error) {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
 		detail.Run, err = scanRun(tx.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id = $1`, id))
 		if err != nil {
 			return err
@@ -219,7 +219,7 @@ func (s *Server) listExperimentRuns(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time `json:"created_at"`
 	}
 	items := []summary{}
-	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err = s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		var one int
 		err := tx.QueryRow(ctx, `SELECT 1 FROM experiments WHERE id = $1`, id).Scan(&one)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -284,7 +284,7 @@ func (s *Server) transitionRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var run domain.Run
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		var err error
 		run, err = scanRun(tx.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id = $1 FOR UPDATE`, id))
 		if err != nil {

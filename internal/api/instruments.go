@@ -36,7 +36,7 @@ func (s *Server) createInstrument(w http.ResponseWriter, r *http.Request) {
 	if in.Attrs == nil {
 		in.Attrs = map[string]any{}
 	}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) (err error) {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
 		if in.NodeID, err = insertNode(ctx, tx, p, domain.KindInstrument, in.Name, map[string]any{"instrument_kind": in.Kind}); err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (s *Server) listInstruments(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time      `json:"created_at"`
 	}
 	items := []summary{}
-	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err = s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT id, node_id, name, kind, attrs, created_at FROM instruments
 			WHERE ($1::text = '' OR name > (SELECT name FROM instruments WHERE id = NULLIF($1::text, '')::uuid))
@@ -136,7 +136,7 @@ func (s *Server) streamReadings(w http.ResponseWriter, r *http.Request) {
 		DatasetID string `json:"dataset_id"`
 		ingest.Summary
 	}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		var instNode, instName string
 		err := tx.QueryRow(ctx, `SELECT node_id, name FROM instruments WHERE id = $1`, instID).Scan(&instNode, &instName)
 		if errors.Is(err, pgx.ErrNoRows) {

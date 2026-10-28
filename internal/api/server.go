@@ -94,6 +94,7 @@ func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
 type Principal struct {
 	Tenant string
 	Actor  string
+	As     storage.Principal // who WithTenant acts as
 }
 
 type principalKey struct{}

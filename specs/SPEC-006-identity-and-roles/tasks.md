@@ -27,7 +27,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - RLS enabled and forced, with `tenant_isolation` and `owner_maintenance` policies as in `0005`. `GRANT SELECT, INSERT, UPDATE (enabled) ON principals TO lde_app`.
   - Verify: `make test-integration` passes, including 1.1.
   - Integrity: yes
-- [ ] 1.3 `storage.Principal`, `WithTenant(…, as, …)`, `WithOwner`
+- [x] 1.3 `storage.Principal`, `WithTenant(…, as, …)`, `WithOwner`
   - Requirements: SPEC-006-R05, SPEC-006-R06, SPEC-006-R08 (plumbing)
   - Files: `internal/storage/postgres.go`, `internal/storage/integration_test.go`, `internal/api/*.go` (call sites only)
   - Do:

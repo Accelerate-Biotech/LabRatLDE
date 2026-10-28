@@ -133,7 +133,7 @@ func TestRunPinsProtocolVersion(t *testing.T) {
 		ProtocolVersion   int    `json:"protocol_version"`
 		ProtocolSHA256    string `json:"protocol_sha256"`
 	}
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, storage.Principal{}, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT payload_json FROM audit_events WHERE action = 'run.created' AND entity_id = $1`,
 			run.ID).Scan(&payload)
 	})

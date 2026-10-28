@@ -22,6 +22,7 @@ const (
 	CodeAuditLink     = "LDE02"
 	CodeAppendOnly    = "LDE03"
 	CodeSealed        = "LDE04"
+	CodeRoleDenied    = "LDE05"
 	codeUniqueViolate = "23505"
 	codeFKViolation   = "23503"
 )
@@ -48,20 +49,38 @@ func Open(ctx context.Context, url string) (*DB, error) {
 
 func (db *DB) Close() { db.Pool.Close() }
 
+// Principal is who a tenant transaction acts as: a principals.id, plus the
+// human an agent acts for. The zero value is nobody: it can read, and every
+// role check in the database fails.
+type Principal struct {
+	ID         string
+	OnBehalfOf string
+}
+
 // WithTenant runs fn in a transaction confined to one tenant. It drops to
 // AppRole and sets app.tenant_id, so every RLS policy applies to every
 // statement fn issues. With no tenant set, policies match zero rows: the
-// failure mode is "sees nothing", never "sees everything".
-func (db *DB) WithTenant(ctx context.Context, tenantID string, fn func(pgx.Tx) error) error {
+// failure mode is "sees nothing", never "sees everything". It also sets
+// app.principal_id and app.on_behalf_of from as, which the role checks read.
+func (db *DB) WithTenant(ctx context.Context, tenantID string, as Principal, fn func(pgx.Tx) error) error {
 	return pgx.BeginTxFunc(ctx, db.Pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SET LOCAL ROLE "+AppRole); err != nil {
 			return fmt.Errorf("storage: assume %s: %w", AppRole, err)
 		}
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID); err != nil {
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true),
+			set_config('app.principal_id', $2, true), set_config('app.on_behalf_of', $3, true)`,
+			tenantID, as.ID, as.OnBehalfOf); err != nil {
 			return fmt.Errorf("storage: set tenant: %w", err)
 		}
 		return fn(tx)
 	})
+}
+
+// WithOwner runs fn in a plain transaction as the connecting (owner) role,
+// which RLS and role checks don't bind. It is for bootstrap and dev sign-in
+// only; requests always go through WithTenant.
+func (db *DB) WithOwner(ctx context.Context, fn func(pgx.Tx) error) error {
+	return pgx.BeginTxFunc(ctx, db.Pool, pgx.TxOptions{}, fn)
 }
 
 // EnsureTenant creates a tenant if absent. It runs as the connecting

@@ -96,7 +96,7 @@ func (s *Server) createProtocolVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var pv protocolVersion
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		var slug string
 		if err := tx.QueryRow(ctx, `SELECT slug FROM experiments WHERE id = $1`, expID).Scan(&slug); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -124,7 +124,7 @@ func (s *Server) listProtocolVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	list := []protocolVersion{}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT id, experiment_id, version, encode(sha256, 'hex'), node_id, created_by, created_at
 			FROM protocol_versions WHERE experiment_id = $1 ORDER BY version`, expID)
@@ -157,7 +157,7 @@ func (s *Server) getProtocolVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var pv protocolVersion
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
 			SELECT id, experiment_id, version, protocol_md, protocol_meta, encode(sha256, 'hex'), node_id, created_by, created_at
 			FROM protocol_versions WHERE id = $1`, id,
