@@ -12,7 +12,7 @@ import (
 
 // listAuditEvents pages through the tenant's chain.
 //
-//	GET /v1/audit/events?after=<seq>&limit=<n≤1000>
+//	GET /v1/audit/events?after=<seq>&limit=<n≤1000>[&entity_type=&entity_id=]
 func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
@@ -20,12 +20,21 @@ func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
+	entityType, entityID := r.URL.Query().Get("entity_type"), r.URL.Query().Get("entity_id")
+	if (entityType == "") != (entityID == "") {
+		s.fail(w, r, badRequest("entity_type and entity_id must be given together"))
+		return
+	}
 	events := []audit.Event{}
 	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
-		return audit.Scan(ctx, tx, p.Tenant, after, limit, func(ev audit.Event) error {
+		add := func(ev audit.Event) error {
 			events = append(events, ev)
 			return nil
-		})
+		}
+		if entityType != "" {
+			return audit.ScanEntity(ctx, tx, p.Tenant, entityType, entityID, after, limit, add)
+		}
+		return audit.Scan(ctx, tx, p.Tenant, after, limit, add)
 	})
 	if err != nil {
 		s.fail(w, r, err)

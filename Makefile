@@ -2,10 +2,16 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 TEST_DB ?= postgres://lde:lde@localhost:5432/lde?sslmode=disable
 OPERATOR ?=
 
-.PHONY: build run test test-integration validate vet up down image verify-chain
+.PHONY: build ui e2e run test test-integration validate vet up down image verify-chain
 
 build: ## Static binary in ./bin
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$(VERSION)" -o bin/labrat ./cmd/server
+
+ui: ## Build the web UI into web/dist (embedded by the server)
+	cd web && npm ci && npm run build
+
+e2e: ## Browser end-to-end tests (needs `make ui` and `make up`)
+	cd web && npm run e2e
 
 run: ## Run against the compose stack
 	go run ./cmd/server

@@ -108,6 +108,27 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, run)
 }
 
+type runInput struct {
+	NodeID string `json:"node_id"`
+	Kind   string `json:"kind"`
+	Label  string `json:"label"`
+}
+
+type runDataset struct {
+	NodeID string  `json:"node_id"`
+	Label  string  `json:"label"`
+	Count  *int64  `json:"count"`
+	SHA256 *string `json:"sha256"`
+}
+
+type runDetail struct {
+	domain.Run
+	ProtocolVersion int          `json:"protocol_version"`
+	ProtocolSHA256  string       `json:"protocol_sha256"`
+	Inputs          []runInput   `json:"inputs"`
+	Datasets        []runDataset `json:"datasets"`
+}
+
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	ctx, p := r.Context(), principal(r.Context())
 	id := r.PathValue("id")
@@ -115,16 +136,126 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, notFound("run"))
 		return
 	}
-	var run domain.Run
+	detail := runDetail{Inputs: []runInput{}, Datasets: []runDataset{}}
 	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) (err error) {
-		run, err = scanRun(tx.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id = $1`, id))
-		return err
+		detail.Run, err = scanRun(tx.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id = $1`, id))
+		if err != nil {
+			return err
+		}
+		err = tx.QueryRow(ctx, `
+			SELECT version, encode(sha256, 'hex') FROM protocol_versions WHERE id = $1`, detail.ProtocolVersionID,
+		).Scan(&detail.ProtocolVersion, &detail.ProtocolSHA256)
+		if err != nil {
+			return err
+		}
+
+		rows, err := tx.Query(ctx, `
+			SELECT n.id, n.kind, n.label FROM lineage_edges e
+			JOIN lineage_nodes n ON n.id = e.from_id
+			WHERE e.to_id = $1 AND e.relation = 'used' AND n.kind <> 'protocol'
+			ORDER BY n.label`, detail.NodeID)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var in runInput
+			if err := rows.Scan(&in.NodeID, &in.Kind, &in.Label); err != nil {
+				rows.Close()
+				return err
+			}
+			detail.Inputs = append(detail.Inputs, in)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		rows, err = tx.Query(ctx, `
+			SELECT n.id, n.label, (a.payload::jsonb->>'count')::bigint, a.payload::jsonb->>'sha256'
+			FROM lineage_edges e
+			JOIN lineage_nodes n ON n.id = e.to_id
+			LEFT JOIN audit_events a ON a.entity_type = 'dataset' AND a.entity_id = n.id::text AND a.action = 'instrument.ingested'
+			WHERE e.from_id = $1 AND e.relation = 'wasGeneratedBy'
+			ORDER BY n.label`, detail.NodeID)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var ds runDataset
+			if err := rows.Scan(&ds.NodeID, &ds.Label, &ds.Count, &ds.SHA256); err != nil {
+				rows.Close()
+				return err
+			}
+			detail.Datasets = append(detail.Datasets, ds)
+		}
+		return rows.Err()
 	})
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	writeJSON(w, http.StatusOK, detail)
+}
+
+// listExperimentRuns pages through an experiment's runs in creation order.
+// The cursor is the id of the last run on the previous page.
+//
+//	GET /v1/experiments/{id}/runs?cursor=<uuid>&limit=<1..200>
+func (s *Server) listExperimentRuns(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	id := r.PathValue("id")
+	if !validUUID(id) {
+		s.fail(w, r, notFound("experiment"))
+		return
+	}
+	cursor, limit, err := readPage(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	type summary struct {
+		ID        string    `json:"id"`
+		Label     string    `json:"label"`
+		State     string    `json:"state"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+	items := []summary{}
+	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+		var one int
+		err := tx.QueryRow(ctx, `SELECT 1 FROM experiments WHERE id = $1`, id).Scan(&one)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return notFound("experiment")
+		} else if err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, `
+			SELECT r.id, n.label, r.state, r.created_at FROM runs r
+			JOIN lineage_nodes n ON n.id = r.node_id
+			WHERE r.experiment_id = $1
+			  AND ($2::text = '' OR (r.created_at, r.id) > (SELECT created_at, id FROM runs WHERE id = NULLIF($2::text, '')::uuid))
+			ORDER BY r.created_at, r.id
+			LIMIT $3`, id, cursor, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var run summary
+			if err := rows.Scan(&run.ID, &run.Label, &run.State, &run.CreatedAt); err != nil {
+				return err
+			}
+			items = append(items, run)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var last string
+	if n := len(items); n > 0 {
+		last = items[n-1].ID
+	}
+	writeJSON(w, http.StatusOK, page{Items: items, NextCursor: nextCursor(len(items), limit, last)})
 }
 
 // transitionRun advances the run state machine. Transitioning to "signed" is

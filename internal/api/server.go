@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/domain"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/ingest"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/storage"
+	"github.com/Accelerate-Biotech/LabRatLDE/web"
 )
 
 const maxJSONBody = 1 << 20
@@ -37,15 +39,20 @@ func New(cfg config.Config, db *storage.DB, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
+	// Outside identify: the UI reads this before sign-in, and in prod identify
+	// refuses every request until OIDC is wired.
+	mux.HandleFunc("GET /v1/meta", s.meta)
 
 	v1 := http.NewServeMux()
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
+	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
 	v1.HandleFunc("POST /v1/experiments/{id}/protocol-versions", s.createProtocolVersion)
 	v1.HandleFunc("GET /v1/experiments/{id}/protocol-versions", s.listProtocolVersions)
 	v1.HandleFunc("GET /v1/protocol-versions/{id}", s.getProtocolVersion)
 
 	v1.HandleFunc("POST /v1/runs", s.createRun)
+	v1.HandleFunc("GET /v1/experiments/{id}/runs", s.listExperimentRuns)
 	v1.HandleFunc("GET /v1/runs/{id}", s.getRun)
 	v1.HandleFunc("POST /v1/runs/{id}/transitions", s.transitionRun)
 
@@ -53,6 +60,7 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/lineage/edges", s.createEdge)
 	v1.HandleFunc("GET /v1/lineage/{id}", s.getLineage)
 
+	v1.HandleFunc("GET /v1/instruments", s.listInstruments)
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)
 	v1.HandleFunc("POST /v1/instruments/{id}/stream", s.streamReadings)
 
@@ -61,6 +69,8 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("GET /v1/audit/verify", s.verifyAudit)
 
 	mux.Handle("/v1/", s.identify(v1))
+	// No method in the pattern: "GET /" would conflict with "/v1/" in the 1.22 mux.
+	mux.Handle("/", web.Handler())
 	return s.logRequests(mux)
 }
 
@@ -70,6 +80,10 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"env": s.cfg.Env})
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +177,38 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// page is the envelope for every list endpoint. NextCursor is the id of the
+// last item, or null when the page is not full (no more rows).
+type page struct {
+	Items      any     `json:"items"`
+	NextCursor *string `json:"next_cursor"`
+}
+
+// readPage parses ?cursor=<uuid>&limit=<1..200>. Limit defaults to 50.
+func readPage(r *http.Request) (cursor string, limit int, err error) {
+	q := r.URL.Query()
+	limit = 50
+	if q.Has("limit") {
+		n, convErr := strconv.Atoi(q.Get("limit"))
+		if convErr != nil || n < 1 || n > 200 {
+			return "", 0, badRequest("limit must be 1..200")
+		}
+		limit = n
+	}
+	cursor = q.Get("cursor")
+	if cursor != "" && !validUUID(cursor) {
+		return "", 0, badRequest("cursor must be a uuid")
+	}
+	return cursor, limit, nil
+}
+
+func nextCursor(n, limit int, lastID string) *string {
+	if n == limit {
+		return &lastID
+	}
+	return nil
 }
 
 type httpError struct {

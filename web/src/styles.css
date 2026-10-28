@@ -1,0 +1,468 @@
+/*
+ * Colour tokens. Contrast ratios are WCAG 2.x against --bg (#0f1419):
+ *   --fg      #e6edf3  15.67:1
+ *   --muted   #9aa7b4   7.55:1
+ *   --accent  #79b8ff   8.91:1
+ *   --border  #7a8592   4.93:1
+ *   --danger  #ff8f85   8.39:1
+ *   --ok      #7ee787  12.05:1
+ * Lineage node kinds on --bg (graph fills, need 3:1; all pass):
+ *   --kind-sample #7ee787 12.05:1   --kind-reagent    #f2cc60 11.97:1
+ *   --kind-protocol #d2a8ff 9.51:1  --kind-run        #79b8ff  8.91:1
+ *   --kind-instrument #ffa657 9.56:1  --kind-dataset  #56d4dd 10.45:1
+ *   --kind-analysis #ff9bce 9.55:1
+ * Other pairs:
+ *   --ok on diff-add #12301a        9.34:1
+ *   --danger on diff-del #3d1a18    7.00:1
+ *   --bg on --accent (selected list option)  8.91:1
+ *   --accent focus outline on --bg  8.91:1 (needs 3:1)
+ *   --border (UI borders, edges) on --bg  4.93:1 (needs 3:1)
+ */
+:root {
+  --bg: #0f1419;
+  --fg: #e6edf3;
+  --muted: #9aa7b4;
+  --accent: #79b8ff;
+  --border: #7a8592;
+  --danger: #ff8f85;
+  --ok: #7ee787;
+  /* Lineage node kinds, all well above 3:1 against --bg. */
+  --kind-sample: #7ee787;
+  --kind-reagent: #f2cc60;
+  --kind-protocol: #d2a8ff;
+  --kind-run: #79b8ff;
+  --kind-instrument: #ffa657;
+  --kind-dataset: #56d4dd;
+  --kind-analysis: #ff9bce;
+
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.topbar span {
+  margin-right: auto;
+  color: var(--muted);
+}
+
+.signin {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 24rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.signin h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+}
+
+.signin input {
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.signin button,
+.topbar button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+[role="alert"] {
+  color: var(--danger);
+  padding: 1rem;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  grid-template-rows: 1fr 12rem;
+  grid-template-areas:
+    "explorer main"
+    "explorer bottom";
+}
+
+.explorer {
+  grid-area: explorer;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.bottom {
+  grid-area: bottom;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.tree,
+.tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree {
+  padding: 0.25rem 0;
+}
+
+.tree [role="treeitem"]:focus-visible {
+  outline: none;
+}
+
+.tree [role="treeitem"]:focus-visible > .tree-label {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tree-label {
+  display: block;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+
+.tree [aria-level="2"] > .tree-label {
+  padding-left: 1.5rem;
+}
+
+.tree li[role="none"] {
+  padding: 0.15rem 0.5rem 0.15rem 1.5rem;
+}
+
+.tree [role="alert"] {
+  padding: 0;
+}
+
+.tabstrip {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
+
+.tab[data-active="true"] {
+  box-shadow: inset 0 -2px var(--accent);
+}
+
+.tab button,
+.bottom [role="tab"] {
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[data-active="true"] button,
+.bottom [role="tab"][aria-selected="true"] {
+  color: var(--fg);
+}
+
+.tab .tab-close {
+  padding: 0.4rem 0.5rem 0.4rem 0;
+}
+
+.tabpanel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 1rem;
+}
+
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0.5rem 1rem;
+}
+
+.panel-body p {
+  margin: 0;
+}
+
+.history {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.history th,
+.history td {
+  padding: 0.2rem 0.75rem 0.2rem 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.history th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+/* Views */
+.view h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+.view h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.hash {
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.protocol {
+  max-width: 70ch;
+}
+
+.data {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data th,
+.data td {
+  padding: 0.2rem 1rem 0.2rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data thead th,
+.data tbody th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.diff-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+}
+
+.diff-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.diff {
+  font-family: var(--mono, monospace);
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+.diff span {
+  display: block;
+}
+
+.diff-add {
+  background: #12301a;
+  color: var(--ok);
+}
+
+.diff-del {
+  background: #3d1a18;
+  color: var(--danger);
+}
+
+.lineage {
+  display: flex;
+  gap: 1rem;
+  height: 100%;
+  min-height: 24rem;
+}
+
+.lineage-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lineage-direction {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.lineage-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 20rem;
+  border: 1px solid var(--border);
+}
+
+.lineage-side {
+  width: 18rem;
+  overflow: auto;
+}
+
+.lineage-side h2 {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.lineage-list {
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+}
+
+.lineage-list [role="option"] {
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.lineage-list [role="option"][aria-selected="true"] {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.lineage-list [role="option"][aria-selected="true"] .muted {
+  color: var(--bg);
+}
+
+.lineage-side pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.topbar kbd {
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10vh;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.palette {
+  width: min(36rem, 92vw);
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.palette input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.palette ul {
+  max-height: 50vh;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.palette li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.palette li[aria-selected="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.palette p {
+  margin: 0.5rem;
+}
