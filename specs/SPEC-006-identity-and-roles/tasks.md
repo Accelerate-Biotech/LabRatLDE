@@ -92,7 +92,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 2: Authentication in the API
 
-- [ ] 2.1 `internal/identity`
+- [x] 2.1 `internal/identity`
   - Requirements: SPEC-006-R05, SPEC-006-R10, SPEC-006-R12 (shared writes)
   - Files: `internal/identity/identity.go` (new)
   - Do:
