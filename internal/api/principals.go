@@ -241,6 +241,114 @@ func (s *Server) revokeRoleGrant(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, g)
 }
 
+// delegationView is an active delegation with both handles.
+type delegationView struct {
+	identity.Delegation
+	AgentHandle string `json:"agent_handle"`
+	HumanHandle string `json:"human_handle"`
+}
+
+// listDelegations lists the tenant's active delegations, newest first.
+//
+//	GET /v1/agent-delegations
+func (s *Server) listDelegations(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	items := []delegationView{}
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT d.id, d.agent_id, d.human_id, d.reason, d.created_by, d.created_at, d.ended_by, d.ended_at,
+			       a.handle, h.handle
+			FROM agent_delegations d
+			JOIN principals a ON a.id = d.agent_id
+			JOIN principals h ON h.id = d.human_id
+			WHERE d.ended_at IS NULL
+			ORDER BY d.created_at DESC, d.id`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var v delegationView
+			if err := rows.Scan(&v.ID, &v.AgentID, &v.HumanID, &v.Reason, &v.CreatedBy, &v.CreatedAt, &v.EndedBy,
+				&v.EndedAt, &v.AgentHandle, &v.HumanHandle); err != nil {
+				return err
+			}
+			items = append(items, v)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// createDelegation lets an agent act for a human. The database lets only
+// admins do it, and checks the two principals' kinds.
+//
+//	POST /v1/agent-delegations {agent_id, human_id, reason}
+func (s *Server) createDelegation(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	var req struct {
+		AgentID string `json:"agent_id"`
+		HumanID string `json:"human_id"`
+		Reason  string `json:"reason"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	switch {
+	case !validUUID(req.AgentID) || !validUUID(req.HumanID):
+		s.fail(w, r, badRequest("agent_id and human_id must be uuids"))
+		return
+	case strings.TrimSpace(req.Reason) == "":
+		s.fail(w, r, badRequest("reason is required"))
+		return
+	}
+	var d identity.Delegation
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
+		d, err = identity.Delegate(ctx, tx, p.Actor, p.Tenant, req.AgentID, req.HumanID, req.Reason, p.As.ID)
+		return err
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, d)
+}
+
+// endDelegation ends a delegation, once.
+//
+//	POST /v1/agent-delegations/{id}/end {reason}
+func (s *Server) endDelegation(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	id := r.PathValue("id")
+	if !validUUID(id) {
+		s.fail(w, r, notFound("delegation"))
+		return
+	}
+	reason, err := readReason(w, r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var d identity.Delegation
+	err = s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
+		d, err = identity.EndDelegation(ctx, tx, p.Actor, p.Tenant, id, reason, p.As.ID)
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = notFound("delegation")
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
 // readReason decodes {"reason": "..."}, which must not be blank.
 func readReason(w http.ResponseWriter, r *http.Request) (string, error) {
 	var req struct {

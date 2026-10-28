@@ -192,7 +192,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Files: `internal/api/principals.go`, `internal/api/server.go`
   - Do: `POST /v1/role-grants` and `POST /v1/role-grants/{id}/revoke`, both needing a reason (400 if blank).
   - Verify: grant, a duplicate grant is 409, revoke, a second revoke is 409, and each shows in the audit trail with its reason.
-- [ ] 4.4 Delegation endpoints
+- [x] 4.4 Delegation endpoints
   - Requirements: SPEC-006-R07, SPEC-006-R08
   - Files: `internal/api/principals.go`, `internal/api/server.go`
   - Do: `GET`/`POST /v1/agent-delegations` and `POST /v1/agent-delegations/{id}/end`. The list joins both handles. A human `agent_id` is 400.

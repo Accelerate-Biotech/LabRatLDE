@@ -57,6 +57,9 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/principals/{id}/disable", s.disablePrincipal)
 	v1.HandleFunc("POST /v1/role-grants", s.createRoleGrant)
 	v1.HandleFunc("POST /v1/role-grants/{id}/revoke", s.revokeRoleGrant)
+	v1.HandleFunc("GET /v1/agent-delegations", s.listDelegations)
+	v1.HandleFunc("POST /v1/agent-delegations", s.createDelegation)
+	v1.HandleFunc("POST /v1/agent-delegations/{id}/end", s.endDelegation)
 
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
 	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
