@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-18 |
-| **Regulatory refs** | 21 CFR 11.10(d), 11.10(g), 11.100(a), 11.300(a), 11.300(b) |
+| **Created / Updated** | 2026-10-18 / 2026-10-28 |
+| **Regulatory refs** | 21 CFR 11.10(d), 11.10(e), 11.10(g), 11.100(a), 11.300(a), 11.300(b) |
 | **Depends on** | `SPEC-001`, `SPEC-005` |
 
 Design: [design.md](design.md) · Tasks: [tasks.md](tasks.md)
@@ -41,11 +41,11 @@ Identity comes from two unauthenticated headers, so anyone who can reach the ser
 | SPEC-006-R03 | If a token's issuer and subject do not match an enabled principal in that tenant, then the API shall respond `403`. | yes | 11.10(d), 11.100(a) |
 | SPEC-006-R04 | The database shall keep principal handles unique per tenant and shall reject deleting a principal or changing its handle. | yes | 11.100(a), 11.300(a) |
 | SPEC-006-R05 | The database shall record every role grant and revocation with grantor, time and reason, append an audit event in the same transaction, and reject the change unless the acting principal holds `admin`. | yes | 11.10(g) |
-| SPEC-006-R06 | If a principal without `scientist` creates or changes lab records, or a principal without `reviewer` or `qa` transitions a run to `signed`, then the database shall reject the statement with SQLSTATE `LDE05`. | yes | 11.10(g) |
+| SPEC-006-R06 | If a principal without `scientist` creates or changes lab records (experiments, protocol versions, lineage nodes and edges, runs, instruments and readings) other than by signing a run, or a principal without `reviewer` or `qa` transitions a run to `signed`, then the database shall reject the statement with SQLSTATE `LDE05`. | yes | 11.10(g) |
 | SPEC-006-R07 | If an agent principal makes a request without an active delegation from a human principal, then the API shall respond `403`. | yes | 11.10(d) |
 | SPEC-006-R08 | While an agent acts for a human, the database shall grant it only roles that both the agent and the human hold. | yes | 11.10(g) |
 | SPEC-006-R09 | When an agent performs a mutation, the API shall record the audit actor as `<human handle> via <agent handle>`. | yes | 11.10(e) |
-| SPEC-006-R10 | While `LDE_ENV=dev`, the API shall accept the dev headers, resolve the actor to a principal (creating it with all roles if absent), and mark the response with `X-LDE-Auth: dev`. | no | developer experience |
+| SPEC-006-R10 | While `LDE_ENV=dev`, the API shall accept the dev headers, resolve the actor to a principal by handle (creating it with `scientist`, `reviewer`, `qa` and `admin` if absent), and mark the response with `X-LDE-Auth: dev`. | no | developer experience |
 | SPEC-006-R11 | When a UI session has seen no user activity for `LDE_UI_IDLE_TIMEOUT` (default 15 min), the UI shall discard its tokens and return to sign-in. | no | 11.300(d) practice |
 | SPEC-006-R12 | When `labrat bootstrap-admin --tenant <id> --issuer <iss> --subject <sub> --handle <h>` runs as the database owner and the tenant has no admin, it shall create that human principal with `admin`, and audit it. | no | operations |
 
@@ -61,13 +61,13 @@ Fixture: a test JWKS with key `K` and issuer `https://idp.test`. Tenant `T1` has
 
 **SPEC-006-R04**: inserting a second `alice` in `T1` fails. `UPDATE principals SET handle='al'` and `DELETE` each fail.
 
-**SPEC-006-R05**: alice granting herself `reviewer` fails with `LDE05`. Carol granting alice `reviewer` with reason "cover for bob" succeeds and adds a `role.granted` audit event.
+**SPEC-006-R05**: alice granting herself `reviewer` fails with `LDE05`. Carol granting alice `reviewer` with reason "cover for bob" succeeds and adds a `role.granted` audit event. The same grant with no audit event in its transaction fails at commit with `LDE02`, and one with an empty reason fails. Carol revoking it succeeds once; revoking it again, or deleting it, fails with `LDE03`.
 
 **SPEC-006-R06**: alice transitioning a completed run to `signed` fails with `LDE05`. Bob doing it succeeds. A reviewer-only principal creating a node fails with `LDE05`.
 
-**SPEC-006-R07**: `bot` with no delegation gets `403` on any request.
+**SPEC-006-R07**: `bot` with no delegation gets `403` on any request, with or without `X-LDE-On-Behalf-Of: alice`. After carol delegates alice → bot, the request with the header succeeds and without it gets `403`.
 
-**SPEC-006-R08**: with alice → bot delegated, `bot` can create a node (both hold scientist) but signing fails with `LDE05` (alice lacks reviewer).
+**SPEC-006-R08**: with alice → bot delegated, `bot` acting for alice holds `scientist` (both hold it) but not `reviewer` (alice lacks it). Without a delegation, or once it has ended, `bot` holds no role. So `bot` can create a node but signing fails with `LDE05`.
 
 **SPEC-006-R09**: that node's `lineage.node_created` event has actor `alice via bot`.
 
@@ -75,6 +75,6 @@ Fixture: a test JWKS with key `K` and issuer `https://idp.test`. Tenant `T1` has
 
 | # | Question | Owner | Answer (date) |
 |---|---|---|---|
-| 1 | Should humans be provisioned just-in-time on first login (with no roles) or only by an admin? Recommendation: admin-provisioned in prod for GMP; JIT can come later. | Rob Bassett | |
-| 2 | Agent delegation: bind it with the IdP's RFC 8693 `act` claim (token exchange), or via LabRat's `agent_delegations` with the agent naming the human in a header? Recommendation: the `agent_delegations` table plus an `X-LDE-On-Behalf-Of` header. It works with every IdP. | Rob Bassett | |
-| 3 | Can one person hold `reviewer` and `qa` at once? Recommendation: yes; SPEC-008's four-eyes rule prevents the same person signing twice. | Rob Bassett | |
+| 1 | Should humans be provisioned just-in-time on first login (with no roles) or only by an admin? Recommendation: admin-provisioned in prod for GMP; JIT can come later. | Rob Bassett | Admin-provisioned in prod; dev auto-creates (R10). Recommendation adopted when the tasks were written (2026-10-28) |
+| 2 | Agent delegation: bind it with the IdP's RFC 8693 `act` claim (token exchange), or via LabRat's `agent_delegations` with the agent naming the human in a header? Recommendation: the `agent_delegations` table plus an `X-LDE-On-Behalf-Of` header. It works with every IdP. | Rob Bassett | `agent_delegations` plus `X-LDE-On-Behalf-Of: <human handle>`. Recommendation adopted (2026-10-28) |
+| 3 | Can one person hold `reviewer` and `qa` at once? Recommendation: yes; SPEC-008's four-eyes rule prevents the same person signing twice. | Rob Bassett | Yes. Recommendation adopted (2026-10-28) |
