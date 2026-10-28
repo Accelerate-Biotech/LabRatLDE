@@ -143,7 +143,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `TestAgentNeedsDelegation` (R07): bot's token is 403 on `GET /v1/experiments` with and without `X-LDE-On-Behalf-Of: alice`. After `identity.Delegate` alice → bot (as the owner), it's 200 with the header and 403 without. Alice sending the header is 400.
     - `TestAgentActorIsHumanViaAgent` (R09): with the delegation, bot (on behalf of alice) creates a node, and its `lineage.node_created` event has actor `alice via bot`.
   - Verify: `make test-integration` fails only on the new tests.
-- [ ] 2.6 `identify`: agent delegation
+- [x] 2.6 `identify`: agent delegation
   - Requirements: SPEC-006-R07, SPEC-006-R09
   - Files: `internal/api/identity.go`
   - Do: step 3 of design §2 "Identification", in the same read transaction as the principal lookup.

@@ -138,12 +138,38 @@ func (s *Server) createDevPrincipal(ctx context.Context, tenant, handle string) 
 	return err
 }
 
-// resolve looks the caller up in tenant, acting as nobody (reads only).
+// resolve looks the caller up in tenant, acting as nobody (reads only). An
+// agent must name, in X-LDE-On-Behalf-Of, an enabled human who has delegated
+// to it; it then acts as "<human> via <agent>" (R07, R09).
 func (s *Server) resolve(r *http.Request, tenant string, lookup func(context.Context, pgx.Tx) (identity.Principal, error)) (Principal, error) {
 	ctx := r.Context()
-	var who identity.Principal
+	onBehalfOf := strings.ToLower(strings.TrimSpace(r.Header.Get("X-LDE-On-Behalf-Of")))
+	var who, human identity.Principal
 	err := s.db.WithTenant(ctx, tenant, storage.Principal{}, func(tx pgx.Tx) (err error) {
-		who, err = lookup(ctx, tx)
+		if who, err = lookup(ctx, tx); err != nil {
+			return err
+		}
+		switch {
+		case !who.Enabled:
+			return forbidden("principal " + who.Handle + " is disabled")
+		case who.Kind != "agent" && onBehalfOf != "":
+			return badRequest("X-LDE-On-Behalf-Of is only for agent principals")
+		case who.Kind != "agent":
+			return nil
+		case onBehalfOf == "":
+			return forbidden("agent " + who.Handle + " must name the human it acts for in X-LDE-On-Behalf-Of")
+		}
+		human, err = identity.ByHandle(ctx, tx, onBehalfOf)
+		noDelegation := forbidden("agent " + who.Handle + " has no active delegation from " + onBehalfOf)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return noDelegation
+		} else if err != nil {
+			return err
+		}
+		ok, err := identity.ActiveDelegation(ctx, tx, who.ID, human.ID)
+		if err == nil && !ok {
+			err = noDelegation
+		}
 		return err
 	})
 	switch {
@@ -151,10 +177,13 @@ func (s *Server) resolve(r *http.Request, tenant string, lookup func(context.Con
 		return Principal{}, errNoPrincipal
 	case err != nil:
 		return Principal{}, err
-	case !who.Enabled:
-		return Principal{}, forbidden("principal " + who.Handle + " is disabled")
 	}
-	return Principal{
+	p := Principal{
 		Tenant: tenant, Actor: who.Handle, As: storage.Principal{ID: who.ID}, Handle: who.Handle, Kind: who.Kind,
-	}, nil
+	}
+	if who.Kind == "agent" {
+		p.Actor = human.Handle + " via " + who.Handle
+		p.As.OnBehalfOf = human.ID
+	}
+	return p, nil
 }
