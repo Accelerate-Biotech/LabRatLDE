@@ -24,6 +24,12 @@ var iqTriggers = []string{
 	"lineage_edges_sealed", "lineage_nodes_sealed", "instrument_readings_sealed",
 	"protocol_versions_append_only", "protocol_versions_no_truncate",
 	"protocol_versions_gapless", "runs_protocol_pinned",
+	"principals_immutable", "principals_no_truncate", "principals_admin_only",
+	"principals_audited", "principals_enabled_audited",
+	"role_grants_guard", "role_grants_no_truncate", "role_grants_audited",
+	"agent_delegations_guard", "agent_delegations_no_truncate", "agent_delegations_audited",
+	"experiments_role_gate", "protocol_versions_role_gate", "lineage_nodes_role_gate",
+	"lineage_edges_role_gate", "instruments_role_gate", "instrument_readings_role_gate", "runs_role_gate",
 }
 
 // runIQ is the installation qualification: read-only catalog checks that the

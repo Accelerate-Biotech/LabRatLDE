@@ -160,7 +160,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - With carol's delegation alice → bot, bot for alice inserts a node, but setting a second completed run `signed` fails with `LDE05`.
   - Verify: `make test-integration` fails only on the new test.
   - Integrity: yes
-- [ ] 3.2 Migration `0009_role_gates`
+- [x] 3.2 Migration `0009_role_gates`
   - Requirements: SPEC-006-R06
   - Files: `internal/storage/migrations/0009_role_gates.sql`, `internal/storage/integration_test.go` (fixture only), `cmd/server/iq.go`
   - Do:

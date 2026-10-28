@@ -48,7 +48,7 @@ func newTenant(t *testing.T, db *storage.DB) string {
 	if err := db.EnsureTenant(context.Background(), id, "t-"+id[:8], "test"); err != nil {
 		t.Fatal(err)
 	}
-	testers.Store(id, newPrincipal(t, db, id, "it@lab", "human"))
+	testers.Store(id, newPrincipal(t, db, id, "it@lab", "human", "scientist", "reviewer", "qa", "admin"))
 	return id
 }
 
@@ -129,16 +129,20 @@ func appendN(t *testing.T, db *storage.DB, tenant string, n int) {
 func TestDatabaseAndEngineAgreeOnChain(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var fixtureEvents int64 // newTenant's principal and role grants
+	if err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE tenant_id = $1`, tenant).Scan(&fixtureEvents); err != nil {
+		t.Fatal(err)
+	}
 	appendN(t, db, tenant, 5)
 
-	ctx := context.Background()
 	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		rep, err := audit.VerifyTenant(ctx, tx, tenant)
 		if err != nil {
 			return err
 		}
-		if !rep.Valid || rep.Events != 6 { // 5 appended, plus newTenant's principal.created
-			t.Fatalf("engine verify: %+v", rep)
+		if !rep.Valid || rep.Events != fixtureEvents+5 {
+			t.Fatalf("engine verify: %+v, want %d events", rep, fixtureEvents+5)
 		}
 		var headHash string
 		var broken *int64
