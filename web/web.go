@@ -25,7 +25,13 @@ const csp = "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ances
 
 // Handler serves / (the app shell) and /assets/<file> (hashed build output).
 // Every other path is a 404, so the file server never lists directories.
-func Handler() http.Handler {
+// connectSrc lists extra origins the UI may fetch from: the OIDC issuer, for
+// discovery and the token endpoint.
+func Handler(connectSrc ...string) http.Handler {
+	policy := csp
+	if len(connectSrc) > 0 {
+		policy += "; connect-src 'self' " + strings.Join(connectSrc, " ")
+	}
 	site, err := fs.Sub(dist, "dist")
 	if err != nil {
 		panic(err)
@@ -36,7 +42,7 @@ func Handler() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", csp)
+		h.Set("Content-Security-Policy", policy)
 		h.Set("X-Content-Type-Options", "nosniff")
 
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {

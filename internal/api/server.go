@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"time"
@@ -87,8 +88,21 @@ func (s *Server) Handler() http.Handler {
 
 	mux.Handle("/v1/", s.identify(v1))
 	// No method in the pattern: "GET /" would conflict with "/v1/" in the 1.22 mux.
-	mux.Handle("/", web.Handler())
+	mux.Handle("/", web.Handler(s.uiConnectSrc()...))
 	return s.logRequests(mux)
+}
+
+// uiConnectSrc is the issuer's origin in prod: the UI fetches OIDC discovery
+// and exchanges its code there.
+func (s *Server) uiConnectSrc() []string {
+	if s.cfg.Env != "prod" {
+		return nil
+	}
+	u, err := url.Parse(s.cfg.OIDCIssuer)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return nil
+	}
+	return []string{u.Scheme + "://" + u.Host}
 }
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {

@@ -76,6 +76,11 @@ body {
   padding: 0 1rem;
 }
 
+.signin form {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .signin h1 {
   margin: 0 0 0.5rem;
   font-size: 1.4rem;

@@ -213,7 +213,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Add POST support.
     - Types and functions for `/v1/me`, principals, grants and delegations, and the extended `Meta`.
     - A 401 calls a registered `onUnauthorized` handler.
-- [ ] 5.2 OIDC sign-in with PKCE and CSP `connect-src`
+- [x] 5.2 OIDC sign-in with PKCE and CSP `connect-src`
   - Requirements: SPEC-006-R01 (UI side)
   - Files: `web/src/auth.ts` (new), `web/src/SignIn.tsx`, `web/src/App.tsx`, `web/web.go`, `internal/api/server.go`
   - Do:
