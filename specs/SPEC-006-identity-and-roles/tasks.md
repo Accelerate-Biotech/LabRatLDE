@@ -187,7 +187,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `POST /v1/principals/{id}/disable`: needs a reason.
     - All writes go through `identity` in `WithTenant(…, p.As, …)`, so a non-admin is 403 from the database.
   - Verify: as dev admin, create `zed`, list shows it, disable it, and a request as `zed` is 403. As a reviewer-only principal (made by an admin's grant + revoke), creating one is 403.
-- [ ] 4.3 Role grant endpoints
+- [x] 4.3 Role grant endpoints
   - Requirements: SPEC-006-R05
   - Files: `internal/api/principals.go`, `internal/api/server.go`
   - Do: `POST /v1/role-grants` and `POST /v1/role-grants/{id}/revoke`, both needing a reason (400 if blank).

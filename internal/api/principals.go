@@ -175,6 +175,72 @@ func (s *Server) disablePrincipal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// createRoleGrant grants a role. The database lets only admins do it, and
+// stamps the grantor and time.
+//
+//	POST /v1/role-grants {principal_id, role, scope, reason}
+func (s *Server) createRoleGrant(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	var req struct {
+		PrincipalID string `json:"principal_id"`
+		Role        string `json:"role"`
+		Scope       string `json:"scope"`
+		Reason      string `json:"reason"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	switch {
+	case !validUUID(req.PrincipalID):
+		s.fail(w, r, badRequest("principal_id must be a uuid"))
+		return
+	case strings.TrimSpace(req.Reason) == "":
+		s.fail(w, r, badRequest("reason is required"))
+		return
+	}
+	var g identity.RoleGrant
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
+		g, err = identity.Grant(ctx, tx, p.Actor, p.Tenant, req.PrincipalID, req.Role, req.Scope, req.Reason, p.As.ID)
+		return err
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, g)
+}
+
+// revokeRoleGrant revokes a grant, once.
+//
+//	POST /v1/role-grants/{id}/revoke {reason}
+func (s *Server) revokeRoleGrant(w http.ResponseWriter, r *http.Request) {
+	ctx, p := r.Context(), principal(r.Context())
+	id := r.PathValue("id")
+	if !validUUID(id) {
+		s.fail(w, r, notFound("role grant"))
+		return
+	}
+	reason, err := readReason(w, r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var g identity.RoleGrant
+	err = s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
+		g, err = identity.Revoke(ctx, tx, p.Actor, p.Tenant, id, reason, p.As.ID)
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = notFound("role grant")
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, g)
+}
+
 // readReason decodes {"reason": "..."}, which must not be blank.
 func readReason(w http.ResponseWriter, r *http.Request) (string, error) {
 	var req struct {
