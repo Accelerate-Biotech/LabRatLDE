@@ -25,6 +25,7 @@ const (
 	CodeRoleDenied    = "LDE05"
 	codeUniqueViolate = "23505"
 	codeFKViolation   = "23503"
+	codeCheckViolate  = "23514"
 )
 
 type DB struct {
@@ -103,7 +104,7 @@ func ErrorCode(err error) string {
 // IsConflict reports constraint failures a client can fix by changing input.
 func IsConflict(err error) bool {
 	switch ErrorCode(err) {
-	case CodeLineageCycle, CodeSealed, codeUniqueViolate:
+	case CodeLineageCycle, CodeAppendOnly, CodeSealed, codeUniqueViolate:
 		return true
 	}
 	return false
@@ -111,3 +112,19 @@ func IsConflict(err error) bool {
 
 // IsBadReference reports a foreign key pointing at a row the tenant can't see.
 func IsBadReference(err error) bool { return ErrorCode(err) == codeFKViolation }
+
+// IsInvalid reports a CHECK constraint (or trigger raising check_violation).
+func IsInvalid(err error) bool { return ErrorCode(err) == codeCheckViolate }
+
+// IsRoleDenied reports that the acting principal lacks a role (LDE05).
+func IsRoleDenied(err error) bool { return ErrorCode(err) == CodeRoleDenied }
+
+// ErrorMessage is the Postgres message without SQLSTATE decoration, or
+// err.Error() for other errors.
+func ErrorMessage(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Message
+	}
+	return err.Error()
+}

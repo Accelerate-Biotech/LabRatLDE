@@ -128,7 +128,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `TestTenantFromTokenOnly` (R02): alice's token with `X-LDE-Tenant: <T2>` and `X-LDE-Actor: mallory` creates a node, and that node's `lineage.node_created` event is in T1 with actor `alice`.
     - `TestUnknownOrDisabledPrincipal` (R03): token for `zed` is 403. Then disable alice (`identity.SetEnabled` as the owner), and her token is 403.
   - Verify: `make test-integration` fails only on the new tests.
-- [ ] 2.4 `identify`: bearer tokens and dev principals
+- [x] 2.4 `identify`: bearer tokens and dev principals
   - Requirements: SPEC-006-R01, SPEC-006-R02, SPEC-006-R03, SPEC-006-R10
   - Files: `internal/api/server.go`, `internal/api/identity.go` (new), `internal/storage/postgres.go`
   - Do:

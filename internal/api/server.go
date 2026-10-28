@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -94,49 +93,9 @@ func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"env": s.cfg.Env})
 }
 
-// ---------------------------------------------------------------------------
-// Identity
-// ---------------------------------------------------------------------------
-
-// Principal is the authenticated caller. Every audit event records Actor.
-type Principal struct {
-	Tenant string
-	Actor  string
-	As     storage.Principal // who WithTenant acts as
-}
-
-type principalKey struct{}
-
-func principal(ctx context.Context) Principal { return ctx.Value(principalKey{}).(Principal) }
-
 var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func validUUID(s string) bool { return uuidRE.MatchString(s) }
-
-// identify resolves the caller.
-//
-// SCAFFOLD ONLY: identity is taken from X-LDE-Tenant / X-LDE-Actor headers,
-// which is acceptable for local development and nothing else. Part 11
-// (§11.10(d), §11.300) requires authenticated, unique user identity: replace
-// this with OIDC bearer-token validation before any regulated use. The
-// server refuses to trust these headers when LDE_ENV=prod.
-func (s *Server) identify(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.cfg.Env == "prod" {
-			writeError(w, http.StatusNotImplemented, "authentication provider not configured (OIDC integration pending)")
-			return
-		}
-		p := Principal{
-			Tenant: strings.ToLower(r.Header.Get("X-LDE-Tenant")),
-			Actor:  strings.TrimSpace(r.Header.Get("X-LDE-Actor")),
-		}
-		if !validUUID(p.Tenant) || p.Actor == "" {
-			writeError(w, http.StatusUnauthorized, "X-LDE-Tenant (uuid) and X-LDE-Actor headers are required")
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)))
-	})
-}
 
 // ---------------------------------------------------------------------------
 // Plumbing
@@ -255,6 +214,10 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusBadRequest, err.Error())
 	case storage.IsBadReference(err):
 		writeError(w, http.StatusUnprocessableEntity, "referenced entity does not exist in this tenant")
+	case storage.IsRoleDenied(err):
+		writeError(w, http.StatusForbidden, storage.ErrorMessage(err))
+	case storage.IsInvalid(err):
+		writeError(w, http.StatusBadRequest, storage.ErrorMessage(err))
 	default:
 		s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
