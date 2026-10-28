@@ -47,7 +47,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - As carol, revoking with a `role.revoked` event succeeds and stamps `revoked_by`. A second revoke fails with `LDE03`, and an owner `DELETE` fails with `LDE03`.
   - Verify: `make test-integration` fails only on the new test.
   - Integrity: yes
-- [ ] 1.5 Migration `0007_role_grants`
+- [x] 1.5 Migration `0007_role_grants`
   - Requirements: SPEC-006-R05
   - Files: `internal/storage/migrations/0007_role_grants.sql`
   - Do:

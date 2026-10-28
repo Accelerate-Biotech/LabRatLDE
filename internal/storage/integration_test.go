@@ -617,15 +617,11 @@ func TestPrincipalHandlesUniqueAndImmutable(t *testing.T) {
 	db := openTestDB(t)
 	t1, t2 := newTenant(t, db), newTenant(t, db)
 	ctx := context.Background()
-	var alice string
-	if err := db.Pool.QueryRow(ctx, insertPrincipal, t1, "human", "alice").Scan(&alice); err != nil {
-		t.Fatal(err)
-	}
+	alice := newPrincipal(t, db, t1, "alice", "human").ID
 	_, err := db.Pool.Exec(ctx, `INSERT INTO principals (tenant_id, kind, handle, issuer, subject)
 		VALUES ($1, 'human', 'alice', 'https://idp.test', 'alice-2')`, t1)
 	wantCode(t, "second alice in T1", err, "23505")
-	_, err = db.Pool.Exec(ctx, insertPrincipal, t2, "human", "alice")
-	wantCode(t, "alice in T2", err, "")
+	newPrincipal(t, db, t2, "alice", "human") // fails the test if T2 rejects alice
 	for _, stmt := range []string{
 		`UPDATE principals SET handle = 'al' WHERE id = $1`,
 		`UPDATE principals SET subject = 'x' WHERE id = $1`,
