@@ -249,7 +249,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 7: Verify and close out
 
-- [ ] 7.1 `verifier` passes the whole spec
+- [x] 7.1 `verifier` passes the whole spec
   - [x] 7.1a Verifier round 1 FAIL (R06): test that signing a run changes nothing else without `scientist`. `TestSigningChangesNothingElse` in `internal/storage/integration_test.go`: bob (reviewer) signing a completed run while setting `params` fails with `LDE05`; it@lab (all roles) doing the same succeeds; bob signing with only `state` changed succeeds. Integrity: yes
   - [x] 7.1b Migration `0010_sign_only_state`: `CREATE OR REPLACE FUNCTION runs_role_gate()` so an update into `signed` also needs `scientist` when any column but `state` changes. Integrity: yes
   - [x] 7.1c Verifier round 1 extras: record IdP sign-out, the self-disable guard, the 1-minute idle minimum and the full `/v1/me` and `/v1/principals` shapes in `design.md`; `POST /v1/principals` requires a reason, as `docs/identity.md` says
