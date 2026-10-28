@@ -1,6 +1,14 @@
 # Local Keycloak for prod-mode testing
 
-A throwaway identity provider so you can run LabRat with `LDE_ENV=prod` on your machine, and walk the SPEC-006 UAT plan. **Test only**: fixed passwords, no TLS, and the realm is re-imported on every start, so nothing is kept.
+A throwaway identity provider so you can run LabRat with `LDE_ENV=prod` on your machine, and walk the SPEC-006 UAT plan. **Test only**: fixed passwords, no TLS. The realm is imported when the container is created; a plain restart keeps what's there.
+
+**Start over at any time** (stop your LabRat server first):
+
+```bash
+sh tools/keycloak/reset-uat.sh
+```
+
+It recreates the Keycloak container, drops and recreates the `lde_uat006` database, and bootstraps carol as admin. Then sign in from a new private window, so no old Keycloak session cookie is reused.
 
 ```bash
 docker compose --profile idp up -d keycloak      # http://localhost:8081 (console: admin / admin)
