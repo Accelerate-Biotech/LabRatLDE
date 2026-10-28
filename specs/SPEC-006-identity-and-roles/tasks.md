@@ -75,7 +75,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - As alice, inserting a delegation fails with `LDE05`. Delegating to a human `agent_id` fails with `23514`.
   - Verify: `make test-integration` fails only on the new test.
   - Integrity: yes
-- [ ] 1.7 Migration `0008_agent_delegations`
+- [x] 1.7 Migration `0008_agent_delegations`
   - Requirements: SPEC-006-R08
   - Files: `internal/storage/migrations/0008_agent_delegations.sql`
   - Do:
