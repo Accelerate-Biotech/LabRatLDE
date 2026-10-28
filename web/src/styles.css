@@ -471,3 +471,48 @@ body {
 .palette p {
   margin: 0.5rem;
 }
+
+/* Identity admin forms (SPEC-006). */
+.action-form {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 32rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.action-form h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.action-form input,
+.action-form select {
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.roles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roles li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}

@@ -1,11 +1,11 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { listAuditEvents, type AuditEvent } from './api';
-import { tabKey, type Tab } from './tabs';
+import { tabKey, type Kind, type Tab } from './tabs';
 
 const PANELS = ['Problems', 'History'] as const;
 
 // The audit entity_type for each tab kind; the audit tab has no single entity.
-const ENTITY_TYPE = { experiment: 'experiment', run: 'run', instrument: 'instrument', lineage: 'lineage_node' } as const;
+const ENTITY_TYPE: Partial<Record<Kind, string>> = { experiment: 'experiment', run: 'run', instrument: 'instrument', lineage: 'lineage_node' };
 
 function History({ tab }: { tab: Tab | null }) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -16,7 +16,7 @@ function History({ tab }: { tab: Tab | null }) {
   useEffect(() => {
     setEvents([]);
     setError(null);
-    if (!tab || tab.kind === 'audit') {
+    if (!tab || !ENTITY_TYPE[tab.kind]) {
       setLoading(false);
       return;
     }
@@ -38,7 +38,7 @@ function History({ tab }: { tab: Tab | null }) {
     // Refetch when the active tab changes, not when its title does.
   }, [key]);
 
-  if (!tab || tab.kind === 'audit') return <p className="muted">Select an entity to see its history</p>;
+  if (!tab || !ENTITY_TYPE[tab.kind]) return <p className="muted">Select an entity to see its history</p>;
   if (error) return <p role="alert">{error}</p>;
   if (loading) return <p className="muted">Loading…</p>;
   if (events.length === 0) return <p className="muted">No events</p>;

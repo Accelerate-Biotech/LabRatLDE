@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Kind = 'experiment' | 'run' | 'instrument' | 'lineage' | 'audit';
+export type Kind = 'experiment' | 'run' | 'instrument' | 'lineage' | 'audit' | 'me' | 'principals' | 'delegations';
 
 export type Tab = { kind: Kind; id: string; title: string };
 
-const KINDS: Kind[] = ['experiment', 'run', 'instrument', 'lineage', 'audit'];
+const KINDS: Kind[] = ['experiment', 'run', 'instrument', 'lineage', 'audit', 'me', 'principals', 'delegations'];
+
+// Single-instance tabs: their id is their kind and their title is fixed.
+export const SINGLETONS: Partial<Record<Kind, Tab>> = {
+  audit: { kind: 'audit', id: 'audit', title: 'Audit trail' },
+  me: { kind: 'me', id: 'me', title: 'My account' },
+  principals: { kind: 'principals', id: 'principals', title: 'Principals' },
+  delegations: { kind: 'delegations', id: 'delegations', title: 'Agent delegations' },
+};
 
 export function tabKey(tab: Pick<Tab, 'kind' | 'id'>): string {
   return `${tab.kind}:${tab.id}`;
@@ -17,7 +25,8 @@ function fromHash(hash: string): Tab | null {
   if (!m) return null;
   const kind = KINDS.find((k) => k === m[1]);
   if (!kind) return null;
-  if (kind === 'audit') return { kind, id: 'audit', title: 'Audit trail' };
+  const single = SINGLETONS[kind];
+  if (single) return single;
   if (!m[2]) return null;
   let id: string;
   try {

@@ -226,7 +226,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Files: `web/src/auth.ts`, `web/src/App.tsx`
   - Do: as design §3.
   - Verify: with `LDE_UI_IDLE_TIMEOUT=1m`, an idle minute returns to sign-in with the message.
-- [ ] 5.4 Me, principals and delegations views
+- [x] 5.4 Me, principals and delegations views
   - Requirements: SPEC-006-R05, SPEC-006-R07 (admin UI)
   - Files: `web/src/MeView.tsx`, `web/src/PrincipalsView.tsx`, `web/src/DelegationsView.tsx` (new), `web/src/tabs.ts`, `web/src/Workspace.tsx`, `web/src/Explorer.tsx`, `web/src/App.tsx`
   - Do:

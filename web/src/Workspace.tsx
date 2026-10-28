@@ -5,10 +5,13 @@ import CommandPalette, { type PaletteItem } from './CommandPalette';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
 import InstrumentView from './InstrumentView';
+import DelegationsView from './DelegationsView';
 import LineageView from './LineageView';
+import MeView from './MeView';
+import PrincipalsView from './PrincipalsView';
 import RunView from './RunView';
 import type { Instrument } from './api';
-import { tabKey, useTabs, type Tab } from './tabs';
+import { SINGLETONS, tabKey, useTabs, type Tab } from './tabs';
 
 // Every view takes the same props: its tab id, plus open and rename from useTabs.
 type ViewProps = { id: string; open: (t: Tab) => void; rename: (key: string, title: string) => void };
@@ -27,6 +30,12 @@ function TabContent({ tab, instruments, verifyOnOpen, open, rename }: { tab: Tab
       return <LineageView {...props} />;
     case 'audit':
       return <AuditView id={tab.id} verifyOnOpen={verifyOnOpen} />;
+    case 'me':
+      return <MeView />;
+    case 'principals':
+      return <PrincipalsView />;
+    case 'delegations':
+      return <DelegationsView />;
   }
 }
 
@@ -55,7 +64,7 @@ export default function Workspace({ onSignOut }: { onSignOut: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const auditTab: Tab = { kind: 'audit', id: 'audit', title: 'Audit trail' };
+  const auditTab = SINGLETONS.audit!;
   const paletteItems: PaletteItem[] = [
     ...loaded.experiments.map((x) => ({ id: `experiment:${x.id}`, title: x.slug, hint: 'Experiment', run: () => open({ kind: 'experiment', id: x.id, title: x.slug }) })),
     ...Object.values(loaded.runs).flatMap((rs) => rs.map((r) => ({ id: `run:${r.id}`, title: r.label, hint: 'Run', run: () => open({ kind: 'run', id: r.id, title: r.label }) }))),
@@ -70,8 +79,10 @@ export default function Workspace({ onSignOut }: { onSignOut: () => void }) {
         setVerifyCount((n) => n + 1);
       },
     },
+    { id: 'cmd:me', title: 'My account', hint: 'Command', run: () => open(SINGLETONS.me!) },
+    { id: 'cmd:principals', title: 'Principals', hint: 'Admin', run: () => open(SINGLETONS.principals!) },
+    { id: 'cmd:delegations', title: 'Agent delegations', hint: 'Admin', run: () => open(SINGLETONS.delegations!) },
     { id: 'cmd:close-all', title: 'Close all tabs', hint: 'Command', run: closeAll },
-    // The UI is only usable in dev for now, so sign-out is always offered.
     { id: 'cmd:sign-out', title: 'Sign out', hint: 'Command', run: onSignOut },
   ];
 
@@ -123,7 +134,7 @@ export default function Workspace({ onSignOut }: { onSignOut: () => void }) {
                   onKeyDown={(e) => onTabKeyDown(e, t)}
                   onFocus={() => setFocusKey(key)}
                 >
-                  {t.kind === 'audit' ? t.title : `${t.kind[0].toUpperCase()}${t.kind.slice(1)}: ${t.title}`}
+                  {SINGLETONS[t.kind] ? t.title : `${t.kind[0].toUpperCase()}${t.kind.slice(1)}: ${t.title}`}
                 </button>
                 <button type="button" className="tab-close" aria-label={`Close ${t.title}`} tabIndex={key === activeKey ? 0 : -1} onClick={() => closeTab(key)}>
                   ×
