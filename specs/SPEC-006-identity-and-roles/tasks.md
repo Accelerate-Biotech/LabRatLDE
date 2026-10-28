@@ -115,7 +115,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `go get github.com/coreos/go-oidc/v3@v3.21.0`.
     - `api.TokenVerifier` interface, and `api.New(cfg, db, log, verifier)`. In prod, `main` builds the verifier from discovery. Prod with a nil verifier still answers `501`.
   - Verify: `go build ./...`. `LDE_ENV=prod go run ./cmd/server` without an issuer exits with the config error.
-- [ ] 2.3 Test: prod bearer authentication (SPEC-006-R01, SPEC-006-R02, SPEC-006-R03)
+- [x] 2.3 Test: prod bearer authentication (SPEC-006-R01, SPEC-006-R02, SPEC-006-R03)
   - Requirements: SPEC-006-R01, SPEC-006-R02, SPEC-006-R03
   - Files: `internal/api/integration_test.go`
   - Do:
