@@ -63,9 +63,10 @@ In **every** terminal you use (server and helper), in the same checkout. With th
 . tools/keycloak/uat.env      # then, in the helper terminal (Part B, after the server is up): tokens
 ```
 
-Then define `api` and `claim` from the block below. With another IdP, run the whole block instead and fill in your values:
+Then define just the `api` and `claim` functions from the block below (paste from `api() {` down). **Don't run the `export` lines with the local Keycloak**: they overwrite `ISSUER` with a placeholder, and the server then fails with "lookup idp.example.org: no such host". With another IdP, run the whole block and fill in your values:
 
 ```bash
+# --- Another IdP only: skip these exports with the local Keycloak ---
 export LAB=http://localhost:8080
 export T1=00000000-0000-4000-8000-0000000000a1      # the production tenant
 export T2=00000000-0000-4000-8000-0000000000b2      # some other tenant
@@ -147,7 +148,7 @@ Stop the dev server. Part B uses a production server.
 
 ## Part B: production server with an IdP
 
-Start the production server in the first terminal. With the local Keycloak, run `prod_env && go run ./cmd/server` and then `tokens` in the helper terminal. Otherwise, fill in the values from your IdP (issuer exactly as in the token `iss`):
+Start the production server in the first terminal. **With the local Keycloak**, run `prod_env && go run ./cmd/server`, then `tokens` in the helper terminal, and skip the block below. **With another IdP only**, fill in the values from your IdP (issuer exactly as in the token `iss`):
 
 ```bash
 export LDE_ENV=prod
