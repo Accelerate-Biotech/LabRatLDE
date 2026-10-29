@@ -120,6 +120,35 @@
       ]
     },
     {
+      "clientId": "labrat-uat",
+      "name": "UAT terminal tokens (test only: password grant)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "labrat audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "labrat", "access.token.claim": "true", "id.token.claim": "false" }
+        },
+        {
+          "name": "lde_tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "lde_tenant",
+            "claim.name": "lde_tenant",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "clientId": "labrat-bot",
       "name": "LabRat test agent",
       "enabled": true,

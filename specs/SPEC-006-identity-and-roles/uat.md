@@ -14,6 +14,16 @@ Two parts. Part A (UAT-01, UAT-02) runs against a development server and needs o
 
 ## 1. Setup
 
+### 1.0 Start from nothing (local Keycloak)
+
+If you test against the local Keycloak in `tools/keycloak/`, which already has every user in 1.1, begin and restart here. Stop any LabRat server first.
+
+```bash
+sh tools/keycloak/reset-uat.sh        # fresh Keycloak realm, empty lde_uat006 database, UI built if missing
+```
+
+Add `--all` to also delete every other local LabRat database (it asks you to type `nuke`). Afterwards, always use a **new private browser window**: an old IdP session cookie would sign you in as the last user. With the local Keycloak, skip 1.1 and use the local lines in 1.3.
+
 ### 1.1 Prerequisites for Part B: the identity provider
 
 An IdP administrator configures it as described in `docs/identity.md` ("Configure your identity provider"). In short:
@@ -47,7 +57,13 @@ make ui                      # npm ci && npm run build, puts the UI in web/dist
 
 ### 1.3 Terminal helpers
 
-In a second terminal in the same checkout (kept open for the whole plan):
+In **every** terminal you use (server and helper), in the same checkout. With the local Keycloak, this one line sets everything below, including `LDE_DATABASE_URL`, the `SUB_*` values and a `tokens` command that exports all six `TOKEN_*` variables:
+
+```bash
+. tools/keycloak/uat.env      # then, in the helper terminal (Part B, after the server is up): tokens
+```
+
+Then define `api` and `claim` from the block below. With another IdP, run the whole block instead and fill in your values:
 
 ```bash
 export LAB=http://localhost:8080
@@ -79,7 +95,7 @@ Use `claim "$TOKEN_ALICE"` to read `sub`, and to confirm `iss`, `aud` and `lde_t
 
 ## Part A: development server
 
-Start the dev server (default mode) in the first terminal:
+Start the dev server (default mode) in the first terminal, after sourcing `uat.env` there (1.3):
 
 ```bash
 go run ./cmd/server          # API and UI on http://localhost:8080, LDE_ENV=dev
@@ -129,7 +145,7 @@ Stop the dev server. Part B uses a production server.
 
 ## Part B: production server with an IdP
 
-Start the production server in the first terminal. Fill in the values from your IdP (issuer exactly as in the token `iss`):
+Start the production server in the first terminal. With the local Keycloak, run `prod_env && go run ./cmd/server` and then `tokens` in the helper terminal. Otherwise, fill in the values from your IdP (issuer exactly as in the token `iss`):
 
 ```bash
 export LDE_ENV=prod
@@ -148,7 +164,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
 - **Requirements:** SPEC-006-R12
 - **As:** Lab admin (with a developer, because it uses the database owner connection)
 - **Steps:**
-  1. In a third terminal, in the checkout, with the same `LDE_DATABASE_URL` as the server (the default from `.env.example` works with `docker compose`), run:
+  1. In a third terminal, in the checkout, with the same `LDE_DATABASE_URL` as the server (`uat.env` sets it for the local Keycloak; otherwise the default from `.env.example` works with `docker compose`), run:
      ```bash
      go run ./cmd/server bootstrap-admin --tenant $T1 --issuer $ISSUER --subject $SUB_CAROL \
        --handle carol --display-name "Carol (synthetic admin)" --email carol@lab.example
@@ -430,7 +446,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
 - **Requirements:** SPEC-006-R04, SPEC-006-R05
 - **As:** QA / validation staff (with a developer; direct database access)
 - **Steps:**
-  1. Open a database shell: `docker compose exec postgres psql -U lde lde`.
+  1. Open a database shell on the server's database: `docker compose exec postgres psql -U lde lde_uat006` with the local Keycloak setup (otherwise the database name in your `LDE_DATABASE_URL`, `lde` by default).
   2. As the database owner try to rename and delete a principal:
      ```sql
      UPDATE principals SET handle = 'al' WHERE handle = 'alice';
