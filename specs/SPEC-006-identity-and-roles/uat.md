@@ -95,11 +95,13 @@ Use `claim "$TOKEN_ALICE"` to read `sub`, and to confirm `iss`, `aud` and `lde_t
 
 ## Part A: development server
 
-Start the dev server (default mode) in the first terminal, after sourcing `uat.env` there (1.3):
+Start the dev server in the first terminal, after sourcing `uat.env` there (1.3), which also clears any prod settings left in the shell (`dev_env` does the same later):
 
 ```bash
 go run ./cmd/server          # API and UI on http://localhost:8080, LDE_ENV=dev
 ```
+
+Check that the first log line says `"env":"dev"`. If it says `prod`, the sign-in page will send you to the IdP instead of showing the Tenant and Handle form: stop the server, run `dev_env` (or `unset LDE_ENV`), and start it again.
 
 ### UAT-01: Sign in on a development server and see who you are
 
