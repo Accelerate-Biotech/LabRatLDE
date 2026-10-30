@@ -169,7 +169,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 3: API
 
-- [ ] 3.1 Change set core: items, apply, direct-edit helper
+- [x] 3.1 Change set core: items, apply, direct-edit helper
   - Requirements: SPEC-007-R04, SPEC-007-R11
   - Files: `internal/api/changesets.go` (new)
   - Do:
@@ -202,7 +202,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
       - Write `audit.Append` `change_set.committed`: entity `change_set`, `Reason: reason`, payload `{"items_sha256": …, "items": 1}`.
       - Then `applyItems`, then `latestRev(entityType, entityID)` for the result.
   - Verify: `go build ./...` (task 3.2 lands in the same commit if `insertNote` is needed to build: implement 3.1 and 3.2 back to back and commit them together).
-- [ ] 3.2 Direct-edit and notes endpoints
+- [x] 3.2 Direct-edit and notes endpoints
   - Requirements: SPEC-007-R11, SPEC-007-R13
   - Files: `internal/api/edits.go` (new), `internal/api/server.go` (routes only)
   - Do:

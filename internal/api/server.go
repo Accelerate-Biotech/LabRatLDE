@@ -65,6 +65,7 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
 	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
+	v1.HandleFunc("PATCH /v1/experiments/{id}", s.patchExperiment)
 	v1.HandleFunc("POST /v1/experiments/{id}/protocol-versions", s.createProtocolVersion)
 	v1.HandleFunc("GET /v1/experiments/{id}/protocol-versions", s.listProtocolVersions)
 	v1.HandleFunc("GET /v1/protocol-versions/{id}", s.getProtocolVersion)
@@ -73,8 +74,13 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("GET /v1/experiments/{id}/runs", s.listExperimentRuns)
 	v1.HandleFunc("GET /v1/runs/{id}", s.getRun)
 	v1.HandleFunc("POST /v1/runs/{id}/transitions", s.transitionRun)
+	v1.HandleFunc("PATCH /v1/runs/{id}/params", s.patchRunParams)
 
 	v1.HandleFunc("POST /v1/lineage/nodes", s.createNode)
+	v1.HandleFunc("PATCH /v1/lineage/nodes/{id}", s.patchNode)
+	v1.HandleFunc("POST /v1/lineage/nodes/{id}/notes", s.createNote)
+	v1.HandleFunc("GET /v1/lineage/nodes/{id}/notes", s.listNotes)
+	v1.HandleFunc("PATCH /v1/notes/{id}", s.patchNote)
 	v1.HandleFunc("POST /v1/lineage/edges", s.createEdge)
 	v1.HandleFunc("GET /v1/lineage/{id}", s.getLineage)
 
