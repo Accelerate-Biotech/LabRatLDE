@@ -15,7 +15,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-004 | [Traceability harness](implemented/SPEC-004-traceability-harness/requirements.md) | Implemented |
 | SPEC-005 | [UI stack and workspace shell](implemented/SPEC-005-ui-workspace-shell/requirements.md) | Implemented |
 | SPEC-006 | [Identity and roles](implemented/SPEC-006-identity-and-roles/requirements.md) | Implemented |
-| SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
+| SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Approved |
 | SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures/requirements.md) | Draft |
 | SPEC-009 | [Schema registry and schema-driven forms](SPEC-009-schema-registry-and-forms/requirements.md) | Draft |
 | SPEC-010 | [Schema governance namespaces](SPEC-010-schema-governance/requirements.md) | Draft |

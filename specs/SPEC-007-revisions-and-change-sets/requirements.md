@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Approved |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-18 |
+| **Created / Updated** | 2026-10-18 / 2026-10-30 |
 | **Regulatory refs** | 21 CFR 11.10(e) ("shall not obscure previously recorded information"), 11.10(c) |
 | **Depends on** | `SPEC-002`, `SPEC-005`, `SPEC-006` |
 
@@ -55,7 +55,7 @@ Fixture: alice (scientist), bob (reviewer), bot (agent acting for alice). Sample
 
 **SPEC-007-R01**: alice edits `S` attrs to `{"volume_ul": 45}` with reason "pipetting error". `S` now has revisions 1 (`50`, author alice, reason "created") and 2 (`45`, reason "pipetting error"), and the current row shows `45`. Revision 1 is still readable.
 
-**SPEC-007-R02**: in a transaction that sets no change set, `UPDATE lineage_nodes SET attrs = '{}' WHERE id = S` fails. With a change set but a reason of `"  "`, it also fails.
+**SPEC-007-R02**: in a transaction that sets no change set, `UPDATE lineage_nodes SET attrs = '{}' WHERE id = S` fails with `LDE03`. It also fails when the change set it names is only `proposed`, or was committed in an earlier transaction. A change set with a reason of `"  "` can't be created at all (`23514`), so no edit can carry that reason. A run state change, which touches no revisable field, still needs no change set.
 
 **SPEC-007-R03**: `UPDATE`, `DELETE` and `TRUNCATE` on `record_revisions`, run as the owner, each fail with `LDE03`.
 
@@ -73,5 +73,5 @@ Fixture: alice (scientist), bob (reviewer), bot (agent acting for alice). Sample
 
 | # | Question | Owner | Answer (date) |
 |---|---|---|---|
-| 1 | Should run params stay editable while a run is `running`, or only while `planned`? Recommendation: editable until the first signature, always with a reason. | Rob Bassett | |
-| 2 | Should committing someone else's proposed change set (not sealed) need `reviewer`, or is `scientist` enough? Recommendation: `scientist`, since sealed records already need review (SPEC-008). | Rob Bassett | |
+| 1 | Should run params stay editable while a run is `running`, or only while `planned`? Recommendation: editable until the first signature, always with a reason. | Rob Bassett | Editable in any state until the run is sealed (signed or aborted), always with a reason (2026-10-30) |
+| 2 | Should committing someone else's proposed change set (not sealed) need `reviewer`, or is `scientist` enough? Recommendation: `scientist`, since sealed records already need review (SPEC-008). | Rob Bassett | `scientist` (2026-10-30) |
