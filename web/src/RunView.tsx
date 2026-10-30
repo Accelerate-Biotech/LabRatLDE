@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getRun, listAuditEvents, type AuditEvent, type RunDetail } from './api';
+import { blame, editRunParams, getRun, listAuditEvents, type AuditEvent, type RunDetail } from './api';
+import EditField from './EditField';
 import type { Tab } from './tabs';
 
 // The explorer supplies the tab title (the run label); RunDetail has none, so rename is unused.
@@ -8,10 +9,15 @@ type Props = { id: string; open: (t: Tab) => void; rename: (key: string, title: 
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; run: RunDetail; events: AuditEvent[] };
+  | { status: 'ready'; run: RunDetail; events: AuditEvent[]; changed: boolean };
 
-function show(v: unknown): string {
-  return typeof v === 'string' ? v : JSON.stringify(v);
+// loadRun fetches what the view shows, plus whether any field has been revised.
+function loadRun(id: string) {
+  return Promise.all([getRun(id), listAuditEvents(0, 'run', id), blame('run', id)]).then(([run, events, b]) => ({
+    run,
+    events,
+    changed: b.fields.some((f) => f.rev > 1),
+  }));
 }
 
 export default function RunView({ id, open }: Props) {
@@ -20,9 +26,9 @@ export default function RunView({ id, open }: Props) {
   useEffect(() => {
     let live = true;
     setState({ status: 'loading' });
-    Promise.all([getRun(id), listAuditEvents(0, 'run', id)])
-      .then(([run, events]) => {
-        if (live) setState({ status: 'ready', run, events });
+    loadRun(id)
+      .then((d) => {
+        if (live) setState({ status: 'ready', ...d });
       })
       .catch((err: unknown) => {
         if (live) setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
@@ -35,11 +41,7 @@ export default function RunView({ id, open }: Props) {
   if (state.status === 'loading') return <p className="muted">Loading run…</p>;
   if (state.status === 'error') return <p role="alert" className="error">{state.message}</p>;
 
-  const { run, events } = state;
-  const params =
-    run.params && typeof run.params === 'object' && !Array.isArray(run.params)
-      ? Object.entries(run.params as Record<string, unknown>)
-      : null;
+  const { run, events, changed } = state;
 
   return (
     <article className="view">
@@ -61,29 +63,16 @@ export default function RunView({ id, open }: Props) {
       </p>
 
       <h2>Params</h2>
-      {params === null ? (
-        <p className="mono">{show(run.params)}</p>
-      ) : params.length === 0 ? (
-        <p className="muted">No params.</p>
-      ) : (
-        <table className="data">
-          <caption className="sr-only">Run params</caption>
-          <thead>
-            <tr>
-              <th scope="col">Key</th>
-              <th scope="col">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {params.map(([k, v]) => (
-              <tr key={k}>
-                <th scope="row">{k}</th>
-                <td className="mono">{show(v)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <EditField
+        label="Params"
+        value={JSON.stringify(run.params ?? {}, null, 2)}
+        json
+        changed={changed}
+        onSave={async (value, reason) => {
+          await editRunParams(id, JSON.parse(value) as Record<string, unknown>, reason);
+          setState({ status: 'ready', ...(await loadRun(id)) });
+        }}
+      />
 
       <h2>Inputs</h2>
       {run.inputs.length === 0 ? (

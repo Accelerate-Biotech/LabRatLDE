@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-import { getLineage, type Lineage, type LineageDirection, type NodeKind } from './api';
+import {
+  blame,
+  editNode,
+  getLineage,
+  type BlameEntry,
+  type Lineage,
+  type LineageDirection,
+  type NodeKind,
+} from './api';
+import EditField from './EditField';
 import { tabKey, type Tab } from './tabs';
 
 cytoscape.use(dagre);
@@ -26,6 +35,8 @@ export default function LineageView({ id, open, rename }: Props) {
   const [direction, setDirection] = useState<LineageDirection>('both');
   const [fetched, setFetched] = useState<Fetched>({ status: 'loading' });
   const [selected, setSelected] = useState<string | null>(null);
+  // Blame for the node named by id; it drives the "changed" markers in the selected-node panel.
+  const [blamed, setBlamed] = useState<{ id: string; fields: BlameEntry[]; error?: string } | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const cy = useRef<cytoscape.Core | null>(null);
   const listbox = useRef<HTMLDivElement>(null);
@@ -49,6 +60,21 @@ export default function LineageView({ id, open, rename }: Props) {
       live = false;
     };
   }, [id, direction, rename]);
+
+  useEffect(() => {
+    if (!selected) return;
+    let live = true;
+    blame('lineage_node', selected)
+      .then((b) => {
+        if (live) setBlamed({ id: selected, fields: b.fields });
+      })
+      .catch((err: unknown) => {
+        if (live) setBlamed({ id: selected, fields: [], error: err instanceof Error ? err.message : String(err) });
+      });
+    return () => {
+      live = false;
+    };
+  }, [selected]);
 
   // Build the graph. The cleanup destroys it, so StrictMode's second run leaves one canvas.
   useEffect(() => {
@@ -126,7 +152,20 @@ export default function LineageView({ id, open, rename }: Props) {
     open({ kind: 'lineage', id: nodeId, title: label });
   }
 
+  // saveNode reloads the graph and the node's blame, so the panel and the graph show the saved values.
+  async function saveNode(nodeId: string, edit: { label?: string; attrs?: Record<string, unknown> }, reason: string) {
+    await editNode(nodeId, edit, reason);
+    const [l, b] = await Promise.all([getLineage(id, direction), blame('lineage_node', nodeId)]);
+    setFetched({ status: 'ready', lineage: l });
+    setBlamed({ id: nodeId, fields: b.fields });
+    const root = l.nodes.find((n) => n.id === l.root);
+    if (root) rename(tabKey({ kind: 'lineage', id }), root.label);
+  }
+
   const node = lineage?.nodes.find((n) => n.id === selected);
+  const revised = blamed && node && blamed.id === node.id ? blamed.fields.filter((f) => f.rev > 1) : [];
+  const labelChanged = revised.some((f) => f.path.startsWith('$.label'));
+  const attrsChanged = revised.some((f) => f.path.startsWith('$.attrs'));
 
   return (
     <div className="lineage">
@@ -164,13 +203,31 @@ export default function LineageView({ id, open, rename }: Props) {
             ))}
           </div>
           {node && (
-            <section aria-label="Selected node">
-              <h2>{node.label}</h2>
+            <section aria-label="Selected node" key={node.id}>
+              <EditField
+                label="Label"
+                value={node.label}
+                changed={labelChanged}
+                onSave={(value, reason) => saveNode(node.id, { label: value }, reason)}
+              />
+              {blamed?.id === node.id && blamed.error && (
+                <p role="alert" className="error">
+                  {blamed.error}
+                </p>
+              )}
               <p>
                 Kind: <strong>{node.kind}</strong>
               </p>
               <p>Created: {node.created_at}</p>
-              <pre className="mono">{JSON.stringify(node.attrs ?? {}, null, 2)}</pre>
+              <EditField
+                label="Attributes"
+                json
+                value={JSON.stringify(node.attrs ?? {}, null, 2)}
+                changed={attrsChanged}
+                onSave={(value, reason) =>
+                  saveNode(node.id, { attrs: JSON.parse(value) as Record<string, unknown> }, reason)
+                }
+              />
               <button type="button" onClick={() => recentre(node.id, node.label)}>
                 Re-centre here
               </button>

@@ -1,7 +1,16 @@
 import MarkdownIt from 'markdown-it';
 import { useEffect, useState } from 'react';
-import { getExperiment, getProtocolVersion, listProtocolVersions, type Experiment, type ProtocolVersion } from './api';
+import {
+  blame,
+  editExperimentTitle,
+  getExperiment,
+  getProtocolVersion,
+  listProtocolVersions,
+  type Experiment,
+  type ProtocolVersion,
+} from './api';
 import { lineDiff, type DiffLine } from './diff';
+import EditField from './EditField';
 import { tabKey, type Tab } from './tabs';
 
 // HTML is disabled, so rendered output cannot contain author-supplied markup.
@@ -12,7 +21,7 @@ type Props = { id: string; open: (t: Tab) => void; rename: (key: string, title: 
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; exp: Experiment; versions: ProtocolVersion[] };
+  | { status: 'ready'; exp: Experiment; versions: ProtocolVersion[]; changed: boolean };
 
 function show(v: unknown): string {
   return typeof v === 'string' ? v : JSON.stringify(v);
@@ -36,10 +45,10 @@ export default function ExperimentView({ id, open, rename }: Props) {
   useEffect(() => {
     let live = true;
     setState({ status: 'loading' });
-    Promise.all([getExperiment(id), listProtocolVersions(id)])
-      .then(([exp, versions]) => {
+    Promise.all([getExperiment(id), listProtocolVersions(id), blame('experiment', id)])
+      .then(([exp, versions, b]) => {
         if (!live) return;
-        setState({ status: 'ready', exp, versions });
+        setState({ status: 'ready', exp, versions, changed: b.fields.some((f) => f.rev > 1) });
         const sorted = [...versions].sort((p, q) => p.version - q.version);
         const cur = sorted.find((v) => v.id === exp.protocol_version_id) ?? sorted[sorted.length - 1];
         const prev = [...sorted].reverse().find((v) => cur && v.version < cur.version) ?? cur;
@@ -59,7 +68,7 @@ export default function ExperimentView({ id, open, rename }: Props) {
   if (state.status === 'loading') return <p className="muted">Loading experiment…</p>;
   if (state.status === 'error') return <p role="alert" className="error">{state.message}</p>;
 
-  const { exp, versions } = state;
+  const { exp, versions, changed } = state;
   const current =
     versions.find((v) => v.id === exp.protocol_version_id) ??
     versions.reduce<ProtocolVersion | undefined>((a, v) => (!a || v.version > a.version ? v : a), undefined);
@@ -78,7 +87,18 @@ export default function ExperimentView({ id, open, rename }: Props) {
 
   return (
     <article className="view">
-      <h1>{exp.title}</h1>
+      <div className="view-title">
+        <EditField
+          label="Title"
+          value={exp.title}
+          changed={changed}
+          onSave={async (value, reason) => {
+            await editExperimentTitle(id, value, reason);
+            const [next, b] = await Promise.all([getExperiment(id), blame('experiment', id)]);
+            setState((s) => (s.status === 'ready' ? { ...s, exp: next, changed: b.fields.some((f) => f.rev > 1) } : s));
+          }}
+        />
+      </div>
       <p className="muted">
         <span className="mono">{exp.slug}</span>
       </p>

@@ -330,7 +330,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
       - `listChangeSets({state?, source?, cursor?})`, `getChangeSet(id)`, `proposeChangeSet(title, reason, items)`, `decideChangeSet(id, 'commit' | 'reject' | 'withdraw', reason)`
     - `RecordType = 'lineage_node' | 'run' | 'experiment' | 'note'`.
   - Verify: `cd web && npm run build`.
-- [ ] 4.2 Edit with reason, and the "changed" marker
+- [x] 4.2 Edit with reason, and the "changed" marker
   - Requirements: SPEC-007-R11 (UI)
   - Files: `web/src/EditField.tsx` (new), `web/src/RunView.tsx`, `web/src/ExperimentView.tsx`, `web/src/LineageView.tsx`, `web/src/styles.css`
   - Do:
