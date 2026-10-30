@@ -210,7 +210,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
   1. Signed in as carol, open Principals from the explorer.
   2. Click "New principal". Kind Human, Handle `alice`, Display name `Alice (synthetic scientist)`, Issuer = your issuer, Subject = `$SUB_ALICE`. Leave Reason empty and try to click Create.
   3. Enter the Reason `new starter` and click Create.
-  4. Repeat steps 2 and 3 for `bob` (`$SUB_BOB`, reason `QA reviewer`). Then create an Agent with handle `bot`, subject `$SUB_BOT`, reason `lab assistant agent`.
+  4. Repeat steps 2 and 3 for `bob` (`$SUB_BOB`, reason `QA reviewer`). Then create an **Agent** (Kind Agent) with handle `bot`, subject `$SUB_BOT`, reason `lab assistant agent`. UAT-12 and UAT-13 need it. Don't create `dave`: UAT-09 needs him to stay unknown to LabRat, and principals can't be deleted.
   5. Try to create `alice` again (same handle).
   6. Try to create a human with handle `Not Valid!`. (The form lowercases letters but rejects spaces and `!`.)
   7. On the `alice` row click "Grant role", choose `scientist`, give the reason `joins the assay team`, and Grant. Do the same: `bob` gets `reviewer` (reason `signs runs`); `bot` gets `scientist` and `reviewer` (reason `agent works for the assay team`).
@@ -363,6 +363,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
 
 - **Requirements:** SPEC-006-R07
 - **As:** Lab admin (carol) and QA staff
+- **Before you start:** `bot` must exist as an agent with `scientist` and `reviewer` (UAT-05 steps 4 and 7). In Principals, its row shows Kind `agent` and both roles; with the local Keycloak, `pid bot` prints an id. Without it, every bot request is `403` because LabRat doesn't know the agent at all, and this case proves nothing.
 - **Steps:**
   1. In Agent delegations, check that the list says "No active delegations."
   2. With the agent's own token, with and without naming a human:
@@ -378,6 +379,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
 
 - **Requirements:** SPEC-006-R07, SPEC-006-R08, SPEC-006-R09
 - **As:** Lab admin (carol) and bench scientist (alice)
+- **Before you start:** the same `bot` check as UAT-12. If the New delegation form says it needs an enabled agent, `bot` was never created: go back to UAT-05 steps 4 and 7.
 - **Steps:**
   1. As carol, open Agent delegations, click "New delegation", choose Human `alice`, Agent `bot`, reason `assay automation for alice`, and Delegate.
   2. Bot creates a node on alice's behalf:
