@@ -13,7 +13,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 1: Database
 
-- [ ] 1.1 Test: agents and services can't commit or reject (SPEC-007-R06)
+- [x] 1.1 Test: agents and services can't commit or reject (SPEC-007-R06)
   - Requirements: SPEC-007-R06
   - Files: `internal/storage/integration_test.go`
   - Do:
@@ -30,7 +30,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Comment `// SPEC-007-R06`.
   - Verify: `make test-integration TEST_DB=…` fails only on the new test (`change_sets` doesn't exist).
   - Integrity: yes
-- [ ] 1.2 Migration `0011_change_sets`
+- [x] 1.2 Migration `0011_change_sets`
   - Requirements: SPEC-007-R06, SPEC-007-R12
   - Files: `internal/storage/migrations/0011_change_sets.sql`
   - Do:

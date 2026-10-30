@@ -873,3 +873,72 @@ func TestSigningChangesNothingElse(t *testing.T) {
 	wantCode(t, "it@lab (scientist and reviewer) signs and edits params", exec(as(tenant), signAndEdit, runs[1]), "")
 	wantCode(t, "bob (reviewer) signs, rewriting unchanged columns", exec(bob, signOnly, runs[2]), "")
 }
+
+// commitChangeSet takes tenant, author and reason. It inserts a change set
+// that is committed in tx, then names it as the transaction's change set.
+func commitChangeSet(ctx context.Context, tx pgx.Tx, tenant, author, reason string) (string, error) {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO change_sets (tenant_id, title, reason, author, state, items, decision_reason)
+		VALUES ($1, 'edit', $2, $3, 'committed', '[]', $2) RETURNING id`, tenant, reason, author).Scan(&id); err != nil {
+		return "", err
+	}
+	_, err := tx.Exec(ctx, `SELECT set_config('app.change_set_id', $1, true)`, id)
+	return id, err
+}
+
+// proposeChangeSet takes tenant and author. It inserts a proposed change set.
+func proposeChangeSet(ctx context.Context, tx pgx.Tx, tenant, author string) (string, error) {
+	var id string
+	err := tx.QueryRow(ctx, `INSERT INTO change_sets (tenant_id, title, reason, author, state, items)
+		VALUES ($1, 'proposal', 'fixture', $2, 'proposed', '[]') RETURNING id`, tenant, author).Scan(&id)
+	return id, err
+}
+
+// SPEC-007-R06
+func TestAgentsCannotDecideChangeSets(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	bot := newPrincipal(t, db, tenant, "bot", "agent", "scientist", "reviewer")
+	svc := newPrincipal(t, db, tenant, "svc", "service", "scientist")
+	botForAlice := storage.Principal{ID: bot.ID, OnBehalfOf: alice.ID}
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "it@lab", bot.ID, alice.ID, as(tenant).ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// update sets a change set's state and decision reason as p.
+	update := func(p storage.Principal, id, state string) error {
+		return db.WithTenant(ctx, tenant, p, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, `UPDATE change_sets SET state = $2, decision_reason = 'ok' WHERE id = $1`, id, state)
+			return err
+		})
+	}
+
+	var cs1, cs2 string
+	err = db.WithTenant(ctx, tenant, botForAlice, func(tx pgx.Tx) (err error) {
+		cs1, err = proposeChangeSet(ctx, tx, tenant, "alice via bot")
+		return err
+	})
+	wantCode(t, "bot for alice proposes", err, "")
+	wantCode(t, "bot for alice commits its proposal", update(botForAlice, cs1, "committed"), "LDE05")
+	wantCode(t, "bot for alice rejects its proposal", update(botForAlice, cs1, "rejected"), "LDE05")
+	err = db.WithTenant(ctx, tenant, botForAlice, func(tx pgx.Tx) error {
+		_, err := commitChangeSet(ctx, tx, tenant, "alice via bot", "direct edit")
+		return err
+	})
+	wantCode(t, "bot for alice inserts a committed change set", err, "LDE05")
+
+	err = db.WithTenant(ctx, tenant, svc, func(tx pgx.Tx) (err error) {
+		cs2, err = proposeChangeSet(ctx, tx, tenant, "svc")
+		return err
+	})
+	wantCode(t, "service proposes", err, "")
+	wantCode(t, "service commits", update(svc, cs2, "committed"), "LDE05")
+
+	wantCode(t, "alice commits her proposal", update(alice, cs1, "committed"), "")
+}
