@@ -42,7 +42,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Header comment in the style of `0007`, with a `-- SPEC-007-Rnn` line above each object.
   - Verify: `make test-integration TEST_DB=…` passes, including 1.1.
   - Integrity: yes
-- [ ] 1.3 Test: a revision keeps every prior value (SPEC-007-R01)
+- [x] 1.3 Test: a revision keeps every prior value (SPEC-007-R01)
   - Requirements: SPEC-007-R01
   - Files: `internal/storage/integration_test.go`
   - Do: add `TestRevisionsKeepPriorValues` with a `newTenant`. All statements run as `as(tenant)`.
@@ -58,7 +58,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Comment `// SPEC-007-R01`.
   - Verify: fails only on the new test.
   - Integrity: yes
-- [ ] 1.4 Test: revisable fields change only in a committing change set (SPEC-007-R02)
+- [x] 1.4 Test: revisable fields change only in a committing change set (SPEC-007-R02)
   - Requirements: SPEC-007-R02
   - Files: `internal/storage/integration_test.go`
   - Do: add `TestRevisableFieldsNeedChangeSet`. Use `newSealFixture(t, db, "completed")`: its run is unsealed and its nodes are `f.s` and so on. Look up the experiment id with `SELECT experiment_id FROM runs WHERE id = f.runID`. Each case below runs in its own `WithTenant` as `as(f.tenant)`:
@@ -73,7 +73,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Comment `// SPEC-007-R02`.
   - Verify: fails only on the new tests (1.3 and 1.4).
   - Integrity: yes
-- [ ] 1.5 Test: revisions are append-only for every role (SPEC-007-R03)
+- [x] 1.5 Test: revisions are append-only for every role (SPEC-007-R03)
   - Requirements: SPEC-007-R03
   - Files: `internal/storage/integration_test.go`
   - Do: add `TestRevisionsAreAppendOnly`. In a new tenant, insert a node as `as(tenant)` so it has revision 1. Then check with `wantCode`:
@@ -84,7 +84,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Comment `// SPEC-007-R03`.
   - Verify: fails only on the new tests (1.3, 1.4 and 1.5).
   - Integrity: yes
-- [ ] 1.6 Migration `0012_record_revisions`
+- [x] 1.6 Migration `0012_record_revisions`
   - Requirements: SPEC-007-R01, SPEC-007-R02, SPEC-007-R03, SPEC-007-R10
   - Files: `internal/storage/migrations/0012_record_revisions.sql`, `internal/storage/integration_test.go` (only the three existing tests named below)
   - Do:

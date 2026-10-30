@@ -51,7 +51,7 @@ Other columns don't make revisions. A run's state transition, for example, needs
 
 ### Triggers and functions
 
-- **`record_revise()`** is `SECURITY DEFINER SET search_path = pg_catalog, public`. Its arguments are the entity type, then the revisable column names. It runs as `AFTER INSERT OR UPDATE … FOR EACH ROW` and is attached as `lineage_nodes_revisions`, `runs_revisions`, `experiments_revisions` and `notes_revisions`.
+- **`record_revise()`** is `SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp`, with every relation written as `public.<name>`. Its arguments are the entity type, then the revisable column names. It runs as `AFTER INSERT OR UPDATE … FOR EACH ROW` and is attached as `lineage_nodes_revisions`, `runs_revisions`, `experiments_revisions` and `notes_revisions`.
   1. It builds `value` with `jsonb_object_agg(k, to_jsonb(NEW) -> k)` over the column names. On UPDATE, if the value is equal to OLD's, it returns without writing anything.
   2. If `app.change_set_id` is set, it looks up that change set in `NEW.tenant_id` with `state = 'committed' AND xmin = pg_current_xact_id()::xid`, meaning it was committed in this transaction (R02).
   3. On UPDATE, or on INSERT with the setting present, a missing committing change set raises `LDE03`: "`<entity>` `<id>` changed outside a change set committed in this transaction".
@@ -180,3 +180,4 @@ Three existing tests change with this spec. `TestAppRoleCannotUpdateUnusedTables
 | 2026-10-30 | `scientist` is enough to commit someone else's unsealed change set | Open question 2. Sealed records need SPEC-008's review anyway | Requiring `reviewer` |
 | 2026-10-30 | Notes get `annotation` from the database (sealed at insert) | The client can't mislabel a note | A client flag |
 | 2026-10-30 | Added `PATCH /v1/experiments/{id}`, `GET /v1/lineage/nodes/{id}/notes` and the `change_set.updated` audit action | The UI needs them, and every mutation is audited | |
+| 2026-10-30 | `record_revise()` qualifies every relation as `public.…` and sets `search_path = pg_catalog, public, pg_temp`. Found by integrity review during task 1.6 | With `pg_temp` implicit and first, `lde_app` could shadow `change_sets` and `record_revisions` with temp tables and forge a committing change set | The design's original `search_path = pg_catalog, public` alone |

@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -365,11 +367,19 @@ func TestSealedNodesAreImmutable(t *testing.T) {
 		{"update sealed dataset", `UPDATE lineage_nodes SET attrs = '{"x":1}' WHERE id = $1`, f.d, storage.CodeSealed},
 		{"update signed run node", `UPDATE lineage_nodes SET label = 'x' WHERE id = $1`, f.r, storage.CodeSealed},
 		{"delete sealed dataset", `DELETE FROM lineage_nodes WHERE id = $1`, f.d, storage.CodeSealed},
-		{"update unsealed sample", `UPDATE lineage_nodes SET attrs = '{"x":1}' WHERE id = $1`, f.s, ""},
 	} {
 		_, err := db.Pool.Exec(ctx, tc.stmt, tc.node)
 		wantCode(t, tc.name, err, tc.want)
 	}
+	// An unsealed node is editable, but only inside a committed change set.
+	err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, f.tenant, "it@lab", "fixture"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE lineage_nodes SET attrs = '{"x":1}' WHERE id = $1`, f.s)
+		return err
+	})
+	wantCode(t, "update unsealed sample", err, "")
 }
 
 // SPEC-002-R06, SPEC-002-R07
@@ -408,10 +418,12 @@ func TestAppRoleCannotUpdateUnusedTables(t *testing.T) {
 	ctx := context.Background()
 	const insufficientPrivilege = "42501"
 	for _, tc := range []struct{ stmt, want string }{
-		{`UPDATE experiments SET title = 'x'`, insufficientPrivilege},
-		{`UPDATE lineage_nodes SET label = 'x'`, insufficientPrivilege},
+		{`UPDATE experiments SET slug = 'x'`, insufficientPrivilege},
+		{`UPDATE lineage_nodes SET kind = 'analysis'`, insufficientPrivilege},
 		{`UPDATE instruments SET name = 'x'`, insufficientPrivilege},
-		{`UPDATE runs SET params = '{"x":1}'`, ""},
+		{`UPDATE experiments SET title = 'x'`, storage.CodeAppendOnly},
+		{`UPDATE lineage_nodes SET label = 'x'`, storage.CodeAppendOnly},
+		{`UPDATE runs SET state = 'running'`, ""},
 	} {
 		err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error { _, err := tx.Exec(ctx, tc.stmt); return err })
 		wantCode(t, tc.stmt, err, tc.want)
@@ -870,7 +882,14 @@ func TestSigningChangesNothingElse(t *testing.T) {
 	const signAndEdit = `UPDATE runs SET state = 'signed', params = '{"tampered": true}' WHERE id = $1`
 	const signOnly = `UPDATE runs SET state = 'signed', started_at = started_at, finished_at = finished_at WHERE id = $1`
 	wantCode(t, "bob (reviewer) signs and edits params", exec(bob, signAndEdit, runs[0]), storage.CodeRoleDenied)
-	wantCode(t, "it@lab (scientist and reviewer) signs and edits params", exec(as(tenant), signAndEdit, runs[1]), "")
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, tenant, "it@lab", "correct params at sign-off"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, signAndEdit, runs[1])
+		return err
+	})
+	wantCode(t, "it@lab (scientist and reviewer) signs and edits params", err, "")
 	wantCode(t, "bob (reviewer) signs, rewriting unchanged columns", exec(bob, signOnly, runs[2]), "")
 }
 
@@ -941,4 +960,240 @@ func TestAgentsCannotDecideChangeSets(t *testing.T) {
 	wantCode(t, "service commits", update(svc, cs2, "committed"), "LDE05")
 
 	wantCode(t, "alice commits her proposal", update(alice, cs1, "committed"), "")
+}
+
+// SPEC-007-R01
+func TestRevisionsKeepPriorValues(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var s string
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `INSERT INTO lineage_nodes (tenant_id, kind, label, attrs, created_by)
+			VALUES ($1, 'sample', 'Plasma 042', '{"volume_ul": 50}', 'alice') RETURNING id`, tenant).Scan(&s)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cs string
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) (err error) {
+		if cs, err = commitChangeSet(ctx, tx, tenant, "alice", "pipetting error"); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `UPDATE lineage_nodes SET attrs = '{"volume_ul": 45}' WHERE id = $1`, s)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, tenant, "alice", "no-op"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE lineage_nodes SET label = label WHERE id = $1`, s)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type revision struct {
+		rev            int
+		value          []byte
+		author, reason string
+		csID           string
+	}
+	var got []revision
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT rev, value, author, reason, COALESCE(change_set_id::text, '')
+			FROM record_revisions WHERE entity_type = 'lineage_node' AND entity_id = $1 ORDER BY rev`, s)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var r revision
+			if err := rows.Scan(&r.rev, &r.value, &r.author, &r.reason, &r.csID); err != nil {
+				return err
+			}
+			got = append(got, r)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []revision{
+		{1, []byte(`{"label": "Plasma 042", "attrs": {"volume_ul": 50}}`), "alice", "created", ""},
+		{2, []byte(`{"label": "Plasma 042", "attrs": {"volume_ul": 45}}`), "alice", "pipetting error", cs},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d revisions, want %d", len(got), len(want))
+	}
+	for i := range want {
+		var gv, wv map[string]any
+		if err := json.Unmarshal(got[i].value, &gv); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(want[i].value, &wv); err != nil {
+			t.Fatal(err)
+		}
+		if got[i].rev != want[i].rev || !reflect.DeepEqual(gv, wv) || got[i].author != want[i].author ||
+			got[i].reason != want[i].reason || got[i].csID != want[i].csID {
+			t.Errorf("revision %d: got %+v (value %v), want %+v", i+1, got[i], gv, want[i])
+		}
+	}
+
+	var attrs []byte
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT attrs FROM lineage_nodes WHERE id = $1`, s).Scan(&attrs)
+	})
+	var current map[string]any
+	if err == nil {
+		err = json.Unmarshal(attrs, &current)
+	}
+	if err != nil || !reflect.DeepEqual(current, map[string]any{"volume_ul": float64(45)}) {
+		t.Errorf("current attrs = %v (err %v), want volume_ul 45", current, err)
+	}
+}
+
+// SPEC-007-R02
+func TestRevisableFieldsNeedChangeSet(t *testing.T) {
+	db := openTestDB(t)
+	f := newSealFixture(t, db, "completed")
+	ctx := context.Background()
+	var exp string
+	if err := db.Pool.QueryRow(ctx, `SELECT experiment_id FROM runs WHERE id = $1`, f.runID).Scan(&exp); err != nil {
+		t.Fatal(err)
+	}
+	// inTx runs fn as the fixture's tenant, in its own transaction.
+	inTx := func(fn func(tx pgx.Tx) error) error {
+		return db.WithTenant(ctx, f.tenant, as(f.tenant), fn)
+	}
+	// exec runs one statement in its own transaction.
+	exec := func(stmt string, args ...any) error {
+		return inTx(func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, stmt, args...)
+			return err
+		})
+	}
+	// The sample's attrs default to '{}', so the edit must change them.
+	const editNode = `UPDATE lineage_nodes SET attrs = '{"x": 1}' WHERE id = $1`
+
+	wantCode(t, "no change set: node attrs", exec(editNode, f.s), storage.CodeAppendOnly)
+	wantCode(t, "no change set: run params", exec(`UPDATE runs SET params = '{"x": 1}' WHERE id = $1`, f.runID), storage.CodeAppendOnly)
+	wantCode(t, "no change set: experiment title", exec(`UPDATE experiments SET title = 'x' WHERE id = $1`, exp), storage.CodeAppendOnly)
+
+	err := inTx(func(tx pgx.Tx) error {
+		id, err := proposeChangeSet(ctx, tx, f.tenant, "it@lab")
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.change_set_id', $1, true)`, id); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, editNode, f.s)
+		return err
+	})
+	wantCode(t, "proposed change set", err, storage.CodeAppendOnly)
+
+	var cs string
+	err = inTx(func(tx pgx.Tx) (err error) {
+		cs, err = commitChangeSet(ctx, tx, f.tenant, "it@lab", "committed earlier")
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = inTx(func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.change_set_id', $1, true)`, cs); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, editNode, f.s)
+		return err
+	})
+	wantCode(t, "change set committed in an earlier transaction", err, storage.CodeAppendOnly)
+
+	err = inTx(func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO change_sets (tenant_id, title, reason, author, state, items, decision_reason)
+			VALUES ($1, 'blank', '  ', 'it@lab', 'committed', '[]', 'ok')`, f.tenant)
+		return err
+	})
+	wantCode(t, "committed change set with a blank reason", err, "23514")
+
+	wantCode(t, "state is not revisable", exec(`UPDATE runs SET state = 'running' WHERE id = $1`, f.runID), "")
+
+	err = inTx(func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, f.tenant, "it@lab", "pipetting"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, editNode, f.s)
+		return err
+	})
+	wantCode(t, "inside a committing change set", err, "")
+
+	// A TEMP table named change_sets must not stand in for the real one.
+	countRevs := func() (n int) {
+		err := inTx(func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT count(*) FROM public.record_revisions WHERE entity_id = $1`, f.s).Scan(&n)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	before := countRevs()
+	err = inTx(func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE change_sets (LIKE public.change_sets INCLUDING DEFAULTS) ON COMMIT DROP`); err != nil {
+			t.Skipf("lde_app cannot create temp tables: %v", err)
+		}
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE record_revisions (LIKE public.record_revisions) ON COMMIT DROP`); err != nil {
+			return err
+		}
+		var forged string
+		err := tx.QueryRow(ctx, `INSERT INTO pg_temp.change_sets (id, tenant_id, title, reason, author, state, items, decision_reason)
+			VALUES (gen_random_uuid(), $1, 'forged', 'forged', 'it@lab', 'committed', '[]', 'ok') RETURNING id`, f.tenant).Scan(&forged)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.change_set_id', $1, true)`, forged); err != nil {
+			return err
+		}
+		// The committing case above already set {"x": 1}; edit to a new value.
+		_, err = tx.Exec(ctx, `UPDATE lineage_nodes SET attrs = '{"x": 2}' WHERE id = $1`, f.s)
+		return err
+	})
+	wantCode(t, "forged change set in a temp table", err, storage.CodeAppendOnly)
+	if after := countRevs(); after != before {
+		t.Errorf("revisions of node: %d before, %d after the forged edit", before, after)
+	}
+}
+
+// SPEC-007-R03
+func TestRevisionsAreAppendOnly(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var node string
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, insertNode, tenant, "sample").Scan(&node)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Pool.Exec(ctx, `UPDATE record_revisions SET reason = 'x' WHERE tenant_id = $1`, tenant)
+	wantCode(t, "owner updates a revision", err, storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, `DELETE FROM record_revisions WHERE tenant_id = $1`, tenant)
+	wantCode(t, "owner deletes a revision", err, storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, `TRUNCATE record_revisions`)
+	wantCode(t, "owner truncates revisions", err, storage.CodeAppendOnly)
+
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO record_revisions (tenant_id, entity_type, entity_id, rev, value, author, reason)
+			VALUES ($1, 'lineage_node', $2, 9, '{}', 'x', 'x')`, tenant, node)
+		return err
+	})
+	wantCode(t, "app role inserts a revision", err, "42501")
 }
