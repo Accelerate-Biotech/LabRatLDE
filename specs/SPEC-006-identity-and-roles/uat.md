@@ -346,7 +346,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
 - **Requirements:** SPEC-006-R05, SPEC-006-R06
 - **As:** Lab admin (carol), reviewer (bob)
 - **Steps:**
-  1. As alice, create and complete a second run (`Plate 8`) as in UAT-10 step 1, using the same experiment. Keep its id as `$RUN2`.
+  1. As alice, create and complete a second run in the same experiment. Don't repeat the `EXP=` line from UAT-10 (the slug already exists, so it returns `409` and leaves `$EXP` empty). With the local Keycloak: `RUN2=$(completed_run "Plate 8")`; otherwise run the `RUN=` and two transition lines from UAT-10 step 1 with the experiment's id. Check `echo $RUN2` prints an id: an empty one makes later URLs return `307`.
   2. As carol, in Principals, click Revoke beside `reviewer` on `bob`'s row. Try to submit with an empty reason, then give `rotated to another project`.
   3. Bob tries to sign: `api $TOKEN_BOB POST /v1/runs/$RUN2/transitions '{"to":"signed","reason":"sign after revoke"}'`
   4. Revoke the same grant again through the terminal. Revoked grants no longer appear in `/v1/principals`, so take the id from the audit trail: `GRANT_ID=$(last_revoked)` with the local Keycloak (otherwise the `entity_id` of the latest `role.revoked` event), then
@@ -386,7 +386,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
      `curl -s -w ' [%{http_code}]\n' -X POST -H "Authorization: Bearer $TOKEN_BOT" -H 'X-LDE-On-Behalf-Of: alice' -H 'Content-Type: application/json' $LAB/v1/lineage/nodes -d '{"kind":"sample","label":"PBMC donor 22 (synthetic)"}'`
   3. Bot, same token, no header: `api $TOKEN_BOT GET /v1/experiments`.
   4. Bot names a different human: `curl -s -w ' [%{http_code}]\n' -H "Authorization: Bearer $TOKEN_BOT" -H 'X-LDE-On-Behalf-Of: bob' $LAB/v1/experiments`.
-  5. Bot tries to sign a completed run for alice (create `Plate 9` as alice and complete it first, as in UAT-10; `$RUN3`):
+  5. Bot tries to sign a completed run for alice. First, as alice, `RUN3=$(completed_run "Plate 9")` (see UAT-11 step 1; run `tokens` first if more than 15 minutes have passed), and check `echo $RUN3` prints an id. Then:
      `curl -s -w ' [%{http_code}]\n' -X POST -H "Authorization: Bearer $TOKEN_BOT" -H 'X-LDE-On-Behalf-Of: alice' -H 'Content-Type: application/json' $LAB/v1/runs/$RUN3/transitions -d '{"to":"signed","reason":"agent sign"}'`
   6. Check the audit event for the node from step 2 (see UAT-15, or `api $TOKEN_CAROL GET '/v1/audit/events?after=0&limit=500'`).
   7. Bot reads its own record: `curl -s -H "Authorization: Bearer $TOKEN_BOT" -H 'X-LDE-On-Behalf-Of: alice' $LAB/v1/me`.
