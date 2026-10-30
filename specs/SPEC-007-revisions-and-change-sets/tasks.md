@@ -403,6 +403,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 ## Phase 6: Verify and close out
 
 - [ ] 6.1 `verifier` passes the whole spec
+  - [x] 6.1a Record the `notes_reject_mutation()` name and the `search_path` hardening of `notes_reject_mutation()` and `runs_params_sealed()` (and their two test cases) in design.md decision log (verifier round 1, check 4). Files: `design.md`.
 - [ ] 6.2 `uat-planner` writes [uat.md](uat.md)
 - [ ] 6.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
 - [ ] 6.4 Summary commit written as the PR description
