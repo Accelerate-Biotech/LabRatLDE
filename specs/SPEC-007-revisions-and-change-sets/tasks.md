@@ -223,7 +223,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Without a reason you get 400.
     - `GET /v1/audit/events` shows `change_set.committed` then `record.revised`.
     - Add a note, list it, and edit it to get `rev` 2.
-- [ ] 3.3 Change set create, list, get and replace
+- [x] 3.3 Change set create, list, get and replace
   - Requirements: SPEC-007-R12, SPEC-007-R05
   - Files: `internal/api/changesets.go`, `internal/api/server.go` (routes only)
   - Do:

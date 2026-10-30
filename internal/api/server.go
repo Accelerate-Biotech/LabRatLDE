@@ -84,6 +84,11 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/lineage/edges", s.createEdge)
 	v1.HandleFunc("GET /v1/lineage/{id}", s.getLineage)
 
+	v1.HandleFunc("POST /v1/change-sets", s.createChangeSet)
+	v1.HandleFunc("GET /v1/change-sets", s.listChangeSets)
+	v1.HandleFunc("GET /v1/change-sets/{id}", s.getChangeSet)
+	v1.HandleFunc("PUT /v1/change-sets/{id}", s.replaceChangeSet)
+
 	v1.HandleFunc("GET /v1/instruments", s.listInstruments)
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)
 	v1.HandleFunc("POST /v1/instruments/{id}/stream", s.streamReadings)
