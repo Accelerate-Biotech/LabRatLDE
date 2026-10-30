@@ -92,6 +92,11 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("POST /v1/change-sets/{id}/reject", s.decideChangeSet("rejected"))
 	v1.HandleFunc("POST /v1/change-sets/{id}/withdraw", s.decideChangeSet("withdrawn"))
 
+	v1.HandleFunc("GET /v1/records/{type}/{id}/revisions", s.listRevisions)
+	v1.HandleFunc("GET /v1/records/{type}/{id}/revisions/{rev}", s.getRevision)
+	v1.HandleFunc("GET /v1/records/{type}/{id}/diff", s.diffRevisions)
+	v1.HandleFunc("GET /v1/records/{type}/{id}/blame", s.blameRecord)
+
 	v1.HandleFunc("GET /v1/instruments", s.listInstruments)
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)
 	v1.HandleFunc("POST /v1/instruments/{id}/stream", s.streamReadings)

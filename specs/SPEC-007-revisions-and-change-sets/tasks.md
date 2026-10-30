@@ -295,7 +295,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     4. For a commit only: unmarshal `items` into `[]changeItem`, then `applyItems(ctx, tx, p, id, <the change set's own reason>, items)`.
     5. Return 200 with the change set as re-read after the update.
   - Verify: `make test-integration TEST_DB=…` passes, including 3.4, 3.5 and 3.6.
-- [ ] 3.8 Revision history endpoints
+- [x] 3.8 Revision history endpoints
   - Requirements: SPEC-007-R07, SPEC-007-R08, SPEC-007-R09
   - Files: `internal/api/revisions.go` (new), `internal/api/server.go` (routes only)
   - Do:
@@ -313,7 +313,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 4: UI
 
-- [ ] 4.1 API client for edits, notes, change sets and revisions
+- [x] 4.1 API client for edits, notes, change sets and revisions
   - Requirements: SPEC-007-R07, SPEC-007-R08, SPEC-007-R09, SPEC-007-R11, SPEC-007-R12 (UI support)
   - Files: `web/src/api.ts`
   - Do:
