@@ -504,3 +504,69 @@ func (s *Server) replaceChangeSet(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, cs)
 }
+
+// decideChangeSet commits, rejects or withdraws a proposed change set. The
+// database checks who may do it (SPEC-007-R06, R12). A commit applies the
+// items in the same transaction, so a failure leaves the change set proposed
+// and the record untouched (SPEC-007-R04).
+//
+//	POST /v1/change-sets/{id}/commit|reject|withdraw  {"reason"}
+func (s *Server) decideChangeSet(state string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, p := r.Context(), principal(r.Context())
+		id := r.PathValue("id")
+		if !validUUID(id) {
+			s.fail(w, r, notFound("change set"))
+			return
+		}
+		var req struct {
+			Reason string `json:"reason"`
+		}
+		if err := decodeJSON(w, r, &req); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if strings.TrimSpace(req.Reason) == "" {
+			s.fail(w, r, badRequest("reason must not be blank"))
+			return
+		}
+		var cs changeSet
+		err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
+			cur, err := scanChangeSet(tx.QueryRow(ctx, `SELECT `+changeSetColumns+` FROM change_sets c WHERE c.id = $1 FOR UPDATE`, id))
+			if errors.Is(err, pgx.ErrNoRows) {
+				return notFound("change set")
+			} else if err != nil {
+				return err
+			}
+			if cur.State != "proposed" {
+				return &httpError{http.StatusConflict, "change set is " + cur.State}
+			}
+			row := tx.QueryRow(ctx, `
+				UPDATE change_sets AS c SET state = $2, decision_reason = $3
+				WHERE c.id = $1
+				RETURNING `+changeSetColumns, id, state, req.Reason)
+			cs, err = scanChangeSet(row)
+			if err != nil {
+				return err
+			}
+			if _, err := audit.Append(ctx, tx, p.Tenant, audit.Entry{
+				Actor: p.Actor, Action: "change_set." + state, EntityType: "change_set", EntityID: cs.ID, Reason: req.Reason,
+				Payload: map[string]any{"items_sha256": cs.ItemsSHA256, "items": len(cs.Items)},
+			}); err != nil {
+				return err
+			}
+			if state != "committed" {
+				return nil
+			}
+			// The change set's own reason, not the decision's, is what its
+			// revisions record. The UPDATE above and applyItems share tx, so
+			// the revision trigger sees this change set as committed here.
+			return applyItems(ctx, tx, p, cs.ID, cur.Reason, cur.Items)
+		})
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, cs)
+	}
+}

@@ -461,3 +461,226 @@ func TestAgentActorIsHumanViaAgent(t *testing.T) {
 		t.Errorf("node events: actors %v, want [alice via bot]", got)
 	}
 }
+
+// sendWant sends a request, fails the test unless the status is want, and
+// decodes the response into out when out is non-nil.
+func sendWant(t *testing.T, srv *httptest.Server, token string, headers map[string]string, want int, method, path string, body, out any) {
+	t.Helper()
+	status, raw := send(t, srv, token, headers, method, path, body)
+	if status != want {
+		t.Fatalf("%s %s: %d %s, want %d", method, path, status, raw, want)
+	}
+	if out != nil {
+		if err := json.Unmarshal(raw, out); err != nil {
+			t.Fatalf("%s %s: %v", method, path, err)
+		}
+	}
+}
+
+// createNode creates a lineage node and returns its id.
+func createNode(t *testing.T, srv *httptest.Server, token string, headers map[string]string, body map[string]any) string {
+	t.Helper()
+	var n struct {
+		ID string `json:"id"`
+	}
+	sendWant(t, srv, token, headers, http.StatusCreated, "POST", "/v1/lineage/nodes", body, &n)
+	return n.ID
+}
+
+// SPEC-007-R05
+func TestProposedChangesInvisible(t *testing.T) {
+	db := openTestDB(t)
+	f := newFixture(t, db)
+	key := newKey(t)
+	srv := prodServer(t, db, key)
+	delegateAliceToBot(t, db, f)
+	alice := mintToken(t, key, claims(f.tenant, "alice"))
+	bot := mintToken(t, key, claims(f.tenant, "bot"))
+	ctx := context.Background()
+
+	s := createNode(t, srv, alice, nil, map[string]any{"kind": "sample", "label": "Plasma 042", "attrs": map[string]any{"volume_ul": 50}})
+	r := createNode(t, srv, alice, nil, map[string]any{"kind": "analysis", "label": "R"})
+	sendWant(t, srv, alice, nil, http.StatusCreated, "POST", "/v1/lineage/edges", map[string]string{"from": s, "to": r, "relation": "used"}, nil)
+
+	var cs struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	sendWant(t, srv, bot, forAlice, http.StatusCreated, "POST", "/v1/change-sets", map[string]any{
+		"title":  "relabel",
+		"reason": "naming convention",
+		"items": []map[string]any{
+			{"op": "add_node", "kind": "sample", "label": "N-042"},
+			{"op": "update_node", "node_id": s, "label": "P-042"},
+		},
+	}, &cs)
+	if cs.State != "proposed" {
+		t.Fatalf("new change set state %q, want proposed", cs.State)
+	}
+
+	// labelsOf maps the node ids in a lineage closure to their labels.
+	labelsOf := func(id, direction string) map[string]string {
+		var lin struct {
+			Nodes []struct {
+				ID    string `json:"id"`
+				Label string `json:"label"`
+			} `json:"nodes"`
+		}
+		sendWant(t, srv, alice, nil, http.StatusOK, "GET", "/v1/lineage/"+id+"?direction="+direction, nil, &lin)
+		got := map[string]string{}
+		for _, n := range lin.Nodes {
+			got[n.ID] = n.Label
+		}
+		return got
+	}
+	countLabel := func(label string) int {
+		var n int
+		err := db.WithTenant(ctx, f.tenant, storage.Principal{}, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT count(*) FROM lineage_nodes WHERE label = $1`, label).Scan(&n)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	if got := labelsOf(s, "both")[s]; got != "Plasma 042" {
+		t.Errorf("S before commit labelled %q, want Plasma 042", got)
+	}
+	for id, label := range labelsOf(s, "both") {
+		if label == "N-042" {
+			t.Errorf("node %s labelled N-042 before commit", id)
+		}
+	}
+	for id, label := range labelsOf(r, "upstream") {
+		if label == "N-042" {
+			t.Errorf("upstream of R includes %s labelled N-042 before commit", id)
+		}
+	}
+	if n := countLabel("N-042"); n != 0 {
+		t.Errorf("%d lineage nodes labelled N-042 before commit, want 0", n)
+	}
+
+	var committed struct {
+		State string `json:"state"`
+	}
+	sendWant(t, srv, alice, nil, http.StatusOK, "POST", "/v1/change-sets/"+cs.ID+"/commit", map[string]string{"reason": "ok"}, &committed)
+	if committed.State != "committed" {
+		t.Errorf("state after commit %q, want committed", committed.State)
+	}
+
+	if got := labelsOf(s, "both")[s]; got != "P-042" {
+		t.Errorf("S after commit labelled %q, want P-042", got)
+	}
+	if n := countLabel("N-042"); n != 1 {
+		t.Errorf("%d lineage nodes labelled N-042 after commit, want 1", n)
+	}
+}
+
+// SPEC-007-R04
+func TestCommitIsAtomic(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	tenant := newTenant(t, db)
+	srv := httptest.NewServer(api.New(config.Config{Env: "dev"}, db, slog.New(slog.NewTextHandler(io.Discard, nil)), nil).Handler())
+	defer srv.Close()
+	devHeaders := map[string]string{"X-LDE-Tenant": tenant, "X-LDE-Actor": "it@lab"}
+
+	s := createNode(t, srv, "", devHeaders, map[string]any{"kind": "sample", "label": "Plasma 042", "attrs": map[string]any{"volume_ul": 50}})
+	r := createNode(t, srv, "", devHeaders, map[string]any{"kind": "analysis", "label": "R"})
+
+	var cs struct {
+		ID string `json:"id"`
+	}
+	sendWant(t, srv, "", devHeaders, http.StatusCreated, "POST", "/v1/change-sets", map[string]any{
+		"title":  "atomic",
+		"reason": "cycle test",
+		"items": []map[string]any{
+			{"op": "update_node", "node_id": s, "attrs": map[string]any{"volume_ul": 45}},
+			{"op": "add_edge", "from": s, "to": r, "relation": "used"},
+			{"op": "add_edge", "from": r, "to": s, "relation": "used"},
+		},
+	}, &cs)
+
+	n := auditCount(t, db, tenant)
+	sendWant(t, srv, "", devHeaders, http.StatusConflict, "POST", "/v1/change-sets/"+cs.ID+"/commit", map[string]string{"reason": "ok"}, nil)
+
+	if after := auditCount(t, db, tenant); after != n {
+		t.Errorf("audit events grew from %d to %d on a failed commit", n, after)
+	}
+	var maxRev, edges int
+	var volume string
+	err := db.WithTenant(ctx, tenant, storage.Principal{}, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT max(rev) FROM record_revisions WHERE entity_id = $1`, s).Scan(&maxRev); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `SELECT attrs->>'volume_ul' FROM lineage_nodes WHERE id = $1`, s).Scan(&volume); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `SELECT count(*) FROM lineage_edges WHERE from_id = $1`, s).Scan(&edges)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if maxRev != 1 {
+		t.Errorf("S max revision %d, want 1", maxRev)
+	}
+	if volume != "50" {
+		t.Errorf("S volume_ul %q, want 50", volume)
+	}
+	if edges != 0 {
+		t.Errorf("%d edges from S, want 0", edges)
+	}
+
+	var cur struct {
+		State string `json:"state"`
+	}
+	sendWant(t, srv, "", devHeaders, http.StatusOK, "GET", "/v1/change-sets/"+cs.ID, nil, &cur)
+	if cur.State != "proposed" {
+		t.Errorf("state after failed commit %q, want proposed", cur.State)
+	}
+}
+
+// SPEC-007-R10
+func TestSealedCommitConflicts(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	srv := httptest.NewServer(api.New(config.Config{Env: "dev"}, db, slog.New(slog.NewTextHandler(io.Discard, nil)), nil).Handler())
+	defer srv.Close()
+	devHeaders := map[string]string{"X-LDE-Tenant": tenant, "X-LDE-Actor": "it@lab"}
+
+	var exp struct {
+		ID string `json:"id"`
+	}
+	sendWant(t, srv, "", devHeaders, http.StatusCreated, "POST", "/v1/experiments", map[string]string{"slug": "e", "title": "E", "protocol_md": "# A\n"}, &exp)
+	newRun := func() string {
+		var run struct {
+			ID string `json:"id"`
+		}
+		sendWant(t, srv, "", devHeaders, http.StatusCreated, "POST", "/v1/runs", map[string]string{"experiment_id": exp.ID}, &run)
+		return run.ID
+	}
+	rid := newRun()
+	aid := newRun()
+	transition := func(id, to, reason string) {
+		sendWant(t, srv, "", devHeaders, http.StatusOK, "POST", "/v1/runs/"+id+"/transitions", map[string]string{"to": to, "reason": reason}, nil)
+	}
+	transition(rid, "running", "")
+	transition(rid, "completed", "")
+	transition(rid, "signed", "approved")
+	transition(aid, "aborted", "contaminated")
+
+	for _, id := range []string{rid, aid} {
+		var cs struct {
+			ID string `json:"id"`
+		}
+		sendWant(t, srv, "", devHeaders, http.StatusCreated, "POST", "/v1/change-sets", map[string]any{
+			"title":  "params",
+			"reason": "temperature correction",
+			"items": []map[string]any{
+				{"op": "update_run_params", "run_id": id, "params": map[string]any{"temp_c": 37}},
+			},
+		}, &cs)
+		sendWant(t, srv, "", devHeaders, http.StatusConflict, "POST", "/v1/change-sets/"+cs.ID+"/commit", map[string]string{"reason": "ok"}, nil)
+	}
+}

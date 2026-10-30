@@ -88,6 +88,9 @@ func (s *Server) Handler() http.Handler {
 	v1.HandleFunc("GET /v1/change-sets", s.listChangeSets)
 	v1.HandleFunc("GET /v1/change-sets/{id}", s.getChangeSet)
 	v1.HandleFunc("PUT /v1/change-sets/{id}", s.replaceChangeSet)
+	v1.HandleFunc("POST /v1/change-sets/{id}/commit", s.decideChangeSet("committed"))
+	v1.HandleFunc("POST /v1/change-sets/{id}/reject", s.decideChangeSet("rejected"))
+	v1.HandleFunc("POST /v1/change-sets/{id}/withdraw", s.decideChangeSet("withdrawn"))
 
 	v1.HandleFunc("GET /v1/instruments", s.listInstruments)
 	v1.HandleFunc("POST /v1/instruments", s.createInstrument)

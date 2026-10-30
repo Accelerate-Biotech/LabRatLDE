@@ -245,7 +245,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `replaceChangeSet`: `PUT /v1/change-sets/{id}`, same body and checks as create. It runs `UPDATE change_sets SET title, reason, items WHERE id = $1 RETURNING …`, mapping 0 rows to 404. Write `change_set.updated`. The DB guard gives 403 for a non-author and 409 for a terminal state.
     - Register the four routes.
   - Verify: `go build ./...`. With dev headers, create, list, get and replace a change set: each works, and replacing as another dev actor is 403.
-- [ ] 3.4 Test: proposals are invisible until committed (SPEC-007-R05)
+- [x] 3.4 Test: proposals are invisible until committed (SPEC-007-R05)
   - Requirements: SPEC-007-R05
   - Files: `internal/api/integration_test.go`
   - Do: add `TestProposedChangesInvisible`, using `newFixture`, `prodServer` and `delegateAliceToBot`. Tokens `alice := mintToken(…"alice")` and `bot := mintToken(…"bot")`.
@@ -259,7 +259,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     5. After: S is labelled `P-042` and the count is 1.
     - Comment `// SPEC-007-R05`.
   - Verify: `make test-integration TEST_DB=…` fails only on the new test (commit is 404).
-- [ ] 3.5 Test: a commit applies everything or nothing (SPEC-007-R04)
+- [x] 3.5 Test: a commit applies everything or nothing (SPEC-007-R04)
   - Requirements: SPEC-007-R04
   - Files: `internal/api/integration_test.go`
   - Do: add `TestCommitIsAtomic`. Use the dev server as in `TestRunPinsProtocolVersion`, with `send(t, srv, "", devHeaders, …)` where `devHeaders = {"X-LDE-Tenant": tenant, "X-LDE-Actor": "it@lab"}`.
@@ -275,7 +275,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
        - `GET /v1/change-sets/{id}` state is still `proposed`.
     - Comment `// SPEC-007-R04`.
   - Verify: fails only on the new tests.
-- [ ] 3.6 Test: committing a change to a sealed record is 409 (SPEC-007-R10)
+- [x] 3.6 Test: committing a change to a sealed record is 409 (SPEC-007-R10)
   - Requirements: SPEC-007-R10
   - Files: `internal/api/integration_test.go`
   - Do: add `TestSealedCommitConflicts` (dev server, it@lab).
@@ -285,7 +285,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     4. For each run, propose `[{"op": "update_run_params", "run_id": <run>, "params": {"temp_c": 37}}]`: want 201. Then commit: want 409.
     - Comment `// SPEC-007-R10`.
   - Verify: fails only on the new tests.
-- [ ] 3.7 Commit, reject and withdraw
+- [x] 3.7 Commit, reject and withdraw
   - Requirements: SPEC-007-R04, SPEC-007-R05, SPEC-007-R06, SPEC-007-R10, SPEC-007-R12
   - Files: `internal/api/changesets.go`, `internal/api/server.go` (routes only)
   - Do: `decideChangeSet(state string) http.HandlerFunc` serves `POST /v1/change-sets/{id}/commit|reject|withdraw` (`committed`, `rejected`, `withdrawn`). The body is `{reason}`, and a blank reason is 400. In one `WithTenant`:
