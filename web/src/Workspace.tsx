@@ -4,6 +4,7 @@ import BottomPanel from './BottomPanel';
 import CommandPalette, { type PaletteItem } from './CommandPalette';
 import Explorer, { type Loaded } from './Explorer';
 import ExperimentView from './ExperimentView';
+import InboxView from './InboxView';
 import InstrumentView from './InstrumentView';
 import DelegationsView from './DelegationsView';
 import LineageView from './LineageView';
@@ -30,6 +31,8 @@ function TabContent({ tab, instruments, verifyOnOpen, open, rename }: { tab: Tab
       return <LineageView {...props} />;
     case 'audit':
       return <AuditView id={tab.id} verifyOnOpen={verifyOnOpen} />;
+    case 'inbox':
+      return <InboxView />;
     case 'me':
       return <MeView />;
     case 'principals':
@@ -79,6 +82,7 @@ export default function Workspace({ onSignOut }: { onSignOut: () => void }) {
         setVerifyCount((n) => n + 1);
       },
     },
+    { id: 'cmd:inbox', title: 'Review inbox', hint: 'Command', run: () => open(SINGLETONS.inbox!) },
     { id: 'cmd:me', title: 'My account', hint: 'Command', run: () => open(SINGLETONS.me!) },
     { id: 'cmd:principals', title: 'Principals', hint: 'Admin', run: () => open(SINGLETONS.principals!) },
     { id: 'cmd:delegations', title: 'Agent delegations', hint: 'Admin', run: () => open(SINGLETONS.delegations!) },

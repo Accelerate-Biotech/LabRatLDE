@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Kind = 'experiment' | 'run' | 'instrument' | 'lineage' | 'audit' | 'me' | 'principals' | 'delegations';
+export type Kind = 'experiment' | 'run' | 'instrument' | 'lineage' | 'audit' | 'inbox' | 'me' | 'principals' | 'delegations';
 
 export type Tab = { kind: Kind; id: string; title: string };
 
-const KINDS: Kind[] = ['experiment', 'run', 'instrument', 'lineage', 'audit', 'me', 'principals', 'delegations'];
+const KINDS: Kind[] = ['experiment', 'run', 'instrument', 'lineage', 'audit', 'inbox', 'me', 'principals', 'delegations'];
 
 // Single-instance tabs: their id is their kind and their title is fixed.
 export const SINGLETONS: Partial<Record<Kind, Tab>> = {
   audit: { kind: 'audit', id: 'audit', title: 'Audit trail' },
+  inbox: { kind: 'inbox', id: 'inbox', title: 'Review inbox' },
   me: { kind: 'me', id: 'me', title: 'My account' },
   principals: { kind: 'principals', id: 'principals', title: 'Principals' },
   delegations: { kind: 'delegations', id: 'delegations', title: 'Agent delegations' },

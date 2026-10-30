@@ -369,7 +369,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Verify: `npm run build`.
     - Add a note to a completed run, sign the run, and add another: the second is labelled an annotation.
     - Editing the first shows the 409 message.
-- [ ] 4.5 Review inbox
+- [x] 4.5 Review inbox
   - Requirements: SPEC-007-R05, SPEC-007-R06, SPEC-007-R12 (UI)
   - Files: `web/src/InboxView.tsx` (new), `web/src/tabs.ts`, `web/src/Workspace.tsx`, `web/src/Explorer.tsx`, `web/src/CommandPalette.tsx` (or wherever palette entries are listed)
   - Do:
