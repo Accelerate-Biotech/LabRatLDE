@@ -180,6 +180,84 @@ export type AuditVerify = {
   agree: boolean;
 };
 
+export type RecordType = 'lineage_node' | 'run' | 'experiment' | 'note';
+
+// Revision is one saved value of a record. Value holds the record's revisable fields.
+export type Revision = {
+  rev: number;
+  value: Record<string, unknown>;
+  author: string;
+  reason: string;
+  change_set_id: string | null;
+  created_at: string;
+};
+
+// Change is one difference between two revisions. Path is a JSON path from "$".
+export type Change = {
+  path: string;
+  kind: 'added' | 'removed' | 'changed';
+  from?: unknown;
+  to?: unknown;
+};
+
+export type BlameEntry = { path: string; rev: number; author: string; at: string };
+
+export type EditResult = { change_set_id: string; rev: number };
+
+export type Note = {
+  id: string;
+  node_id: string;
+  body: string;
+  annotation: boolean;
+  created_by: string;
+  created_at: string;
+  rev: number;
+};
+
+// ChangeItem is one edit in a change set, keyed on op (SPEC-007 design §2).
+export type ChangeItem =
+  | { op: 'update_node'; node_id: string; label?: string; attrs?: Record<string, unknown> }
+  | { op: 'update_run_params'; run_id: string; params: Record<string, unknown> }
+  | { op: 'set_experiment_title'; experiment_id: string; title: string }
+  | { op: 'add_node'; kind: NodeKind; label: string; attrs?: Record<string, unknown> }
+  | { op: 'add_edge'; from: string; to: string; relation: Relation }
+  | { op: 'add_note'; node_id: string; body: string }
+  | { op: 'edit_note'; note_id: string; body: string };
+
+export type ChangeSetState = 'proposed' | 'committed' | 'rejected' | 'withdrawn';
+
+export type ChangeSetSource = 'human' | 'parser' | 'agent';
+
+export type ChangeSet = {
+  id: string;
+  title: string;
+  reason: string;
+  source: ChangeSetSource;
+  author: string;
+  state: ChangeSetState;
+  items: ChangeItem[];
+  items_sha256: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
+  created_at: string;
+};
+
+// ChangeSetDetail's current holds, per item, the target's latest revision value (or null).
+export type ChangeSetDetail = ChangeSet & { current: unknown[] };
+
+// ChangeSetSummary is a change set in a list, with the item count.
+export type ChangeSetSummary = {
+  id: string;
+  title: string;
+  reason: string;
+  source: ChangeSetSource;
+  author: string;
+  state: ChangeSetState;
+  items: number;
+  created_at: string;
+};
+
 // stored reads a session key, tolerating storage that is disabled or throws.
 function stored(key: string): string | null {
   try {
@@ -226,7 +304,7 @@ export function setUnauthorizedHandler(fn: () => void): void {
   onUnauthorized = fn;
 }
 
-async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
@@ -259,6 +337,14 @@ function get<T>(path: string): Promise<T> {
 
 function post<T>(path: string, body: unknown): Promise<T> {
   return request<T>('POST', path, body);
+}
+
+function put<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('PUT', path, body);
+}
+
+function patch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('PATCH', path, body);
 }
 
 // qs builds a query string from the defined, non-empty params.
@@ -350,4 +436,71 @@ export function createDelegation(agentId: string, humanId: string, reason: strin
 
 export function endDelegation(id: string, reason: string): Promise<Delegation> {
   return post(`/v1/agent-delegations/${encodeURIComponent(id)}/end`, { reason });
+}
+
+export function editNode(
+  id: string,
+  edit: { label?: string; attrs?: Record<string, unknown> },
+  reason: string,
+): Promise<EditResult> {
+  return patch(`/v1/lineage/nodes/${encodeURIComponent(id)}`, { ...edit, reason });
+}
+
+export function editRunParams(id: string, params: Record<string, unknown>, reason: string): Promise<EditResult> {
+  return patch(`/v1/runs/${encodeURIComponent(id)}/params`, { params, reason });
+}
+
+export function editExperimentTitle(id: string, title: string, reason: string): Promise<EditResult> {
+  return patch(`/v1/experiments/${encodeURIComponent(id)}`, { title, reason });
+}
+
+export function editNote(id: string, body: string, reason: string): Promise<EditResult> {
+  return patch(`/v1/notes/${encodeURIComponent(id)}`, { body, reason });
+}
+
+export function listNotes(nodeId: string): Promise<{ items: Note[] }> {
+  return get(`/v1/lineage/nodes/${encodeURIComponent(nodeId)}/notes`);
+}
+
+export function addNote(nodeId: string, body: string): Promise<Note> {
+  return post(`/v1/lineage/nodes/${encodeURIComponent(nodeId)}/notes`, { body });
+}
+
+export function listRevisions(type: RecordType, id: string): Promise<{ items: Revision[] }> {
+  return get(`/v1/records/${type}/${encodeURIComponent(id)}/revisions`);
+}
+
+export function diffRevisions(
+  type: RecordType,
+  id: string,
+  from: number,
+  to: number,
+): Promise<{ from: number; to: number; changes: Change[] }> {
+  return get(`/v1/records/${type}/${encodeURIComponent(id)}/diff${qs({ from: String(from), to: String(to) })}`);
+}
+
+export function blame(type: RecordType, id: string): Promise<{ rev: number; fields: BlameEntry[] }> {
+  return get(`/v1/records/${type}/${encodeURIComponent(id)}/blame`);
+}
+
+export function listChangeSets(
+  filter: { state?: ChangeSetState; source?: ChangeSetSource; cursor?: string } = {},
+): Promise<Page<ChangeSetSummary>> {
+  return get(`/v1/change-sets${qs(filter)}`);
+}
+
+export function getChangeSet(id: string): Promise<ChangeSetDetail> {
+  return get(`/v1/change-sets/${encodeURIComponent(id)}`);
+}
+
+export function proposeChangeSet(title: string, reason: string, items: ChangeItem[]): Promise<ChangeSet> {
+  return post('/v1/change-sets', { title, reason, items });
+}
+
+export function decideChangeSet(
+  id: string,
+  decision: 'commit' | 'reject' | 'withdraw',
+  reason: string,
+): Promise<ChangeSet> {
+  return post(`/v1/change-sets/${encodeURIComponent(id)}/${decision}`, { reason });
 }
