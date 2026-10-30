@@ -64,7 +64,7 @@ Shared fixture: sample `S` →used→ run `R` →wasGeneratedBy→ dataset `D` (
 
 **SPEC-002-R08**: as `lde_app`, `UPDATE experiments`, `UPDATE lineage_nodes` and `UPDATE instruments` each fail with `insufficient_privilege`. `UPDATE runs` still succeeds for an unsigned run.
 
-> **Amended by SPEC-007** (2026-10-30): `lde_app` regains `UPDATE (label, attrs)` on `lineage_nodes` and `UPDATE (title)` on `experiments`. Each of those columns is behind the `record_revise` trigger, so it changes only inside a committed change set. Every other column of `experiments` and `lineage_nodes`, and all of `instruments`, still fails with `insufficient_privilege`. `UPDATE runs` of a non-revisable column (e.g. `state`) still succeeds for an unsigned run. See [SPEC-007 design](../../SPEC-007-revisions-and-change-sets/design.md#5-decision-log).
+> **Amended by SPEC-007** (2026-10-30): `lde_app` regains `UPDATE (label, attrs)` on `lineage_nodes` and `UPDATE (title)` on `experiments`. Each of those columns is behind the `record_revise` trigger, so it changes only inside a committed change set. Every other column of `experiments` and `lineage_nodes`, and all of `instruments`, still fails with `insufficient_privilege`. `UPDATE runs` of a non-revisable column (e.g. `state`) still succeeds for an unsigned run. See [SPEC-007 design](../SPEC-007-revisions-and-change-sets/design.md#5-decision-log).
 
 ## 5. Open questions
 

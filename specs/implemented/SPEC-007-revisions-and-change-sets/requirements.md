@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved |
+| **Status** | Implemented |
 | **Owner** | Rob Bassett |
 | **Created / Updated** | 2026-10-18 / 2026-10-30 |
 | **Regulatory refs** | 21 CFR 11.10(e) ("shall not obscure previously recorded information"), 11.10(c) |

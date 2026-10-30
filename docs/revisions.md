@@ -4,8 +4,8 @@ Lab records can be corrected, but never overwritten. Each change adds a
 **revision** that holds the full new value, and the earlier revisions stay
 readable. Every edit goes through a **change set** with a reason. The database
 writes the history in the same transaction as the change, so no endpoint or
-script can skip it. This is the design of [SPEC-007](../specs/SPEC-007-revisions-and-change-sets/requirements.md),
-which is in progress; this page describes what it delivers.
+script can skip it. This is the design of [SPEC-007](../specs/implemented/SPEC-007-revisions-and-change-sets/requirements.md),
+which is implemented; this page describes what it delivers.
 
 ## What can be revised
 
