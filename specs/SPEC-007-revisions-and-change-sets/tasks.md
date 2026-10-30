@@ -387,7 +387,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 5: Docs
 
-- [ ] 5.1 `docs/revisions.md` and README
+- [x] 5.1 `docs/revisions.md` and README
   - Requirements: SPEC-007-R07, SPEC-007-R11, SPEC-007-R12 (documentation)
   - Files: `docs/revisions.md` (new), `README.md`
   - Do:
