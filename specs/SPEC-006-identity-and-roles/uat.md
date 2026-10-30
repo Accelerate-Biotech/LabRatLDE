@@ -214,10 +214,10 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
   5. Try to create `alice` again (same handle).
   6. Try to create a human with handle `Not Valid!`. (The form lowercases letters but rejects spaces and `!`.)
   7. On the `alice` row click "Grant role", choose `scientist`, give the reason `joins the assay team`, and Grant. Do the same: `bob` gets `reviewer` (reason `signs runs`); `bot` gets `scientist` and `reviewer` (reason `agent works for the assay team`).
-  8. On `alice` click "Grant role" again and check which roles are offered. Grant `scientist` a second time through the terminal: get alice's id from the page or `api $TOKEN_CAROL GET /v1/principals`, then
-     `api $TOKEN_CAROL POST /v1/role-grants '{"principal_id":"<alice id>","role":"scientist","reason":"again"}'`.
-  9. Try to grant with a blank reason through the terminal:
-     `api $TOKEN_CAROL POST /v1/role-grants '{"principal_id":"<alice id>","role":"qa","reason":"  "}'`.
+  8. On `alice` click "Grant role" again and check which roles are offered. Grant `scientist` a second time through the terminal. `principal_id` is alice's **LabRat** principal id, not her IdP subject (`$SUB_ALICE`; sending that gives `[422]`). With the local Keycloak, `ALICE_ID=$(pid alice)`; otherwise find the `"id"` before `"handle":"alice"` in `api $TOKEN_CAROL GET /v1/principals`. Then
+     `api $TOKEN_CAROL POST /v1/role-grants "{\"principal_id\":\"$ALICE_ID\",\"role\":\"scientist\",\"reason\":\"again\"}"`.
+  9. Try to grant with a blank reason through the terminal (same `$ALICE_ID`):
+     `api $TOKEN_CAROL POST /v1/role-grants "{\"principal_id\":\"$ALICE_ID\",\"role\":\"qa\",\"reason\":\"  \"}"`.
 - **Expected:**
   - Step 2: the Create button stays disabled (or the form refuses) until a reason is entered.
   - Step 3: "Created alice. Grant roles before they start work." and `alice` appears in the table, Enabled, with Roles "None".
@@ -241,7 +241,7 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
   4. Click "New principal" and try to create `eve` (subject `eve-sub`, issuer your issuer, reason `test`).
   5. Open Agent delegations and try "New delegation" (it needs an agent and a human: choose `alice` and `bot`, reason `try`).
   6. In the terminal: `api $TOKEN_ALICE GET /v1/principals` and
-     `api $TOKEN_ALICE POST /v1/role-grants '{"principal_id":"<alice id>","role":"reviewer","reason":"cover for bob"}'`
+     `api $TOKEN_ALICE POST /v1/role-grants "{\"principal_id\":\"$(pid alice)\",\"role\":\"reviewer\",\"reason\":\"cover for bob\"}"`
 - **Expected:**
   - Step 2: only `scientist` is listed.
   - Steps 3, 4 and 5: each shows a red error in the form (HTTP `403`) and nothing changes. Reloading the Principals tab shows alice with only `scientist`, and no `eve`.
@@ -349,8 +349,8 @@ The server must start and migrate the database. (Starting without `LDE_OIDC_ISSU
   1. As alice, create and complete a second run (`Plate 8`) as in UAT-10 step 1, using the same experiment. Keep its id as `$RUN2`.
   2. As carol, in Principals, click Revoke beside `reviewer` on `bob`'s row. Try to submit with an empty reason, then give `rotated to another project`.
   3. Bob tries to sign: `api $TOKEN_BOB POST /v1/runs/$RUN2/transitions '{"to":"signed","reason":"sign after revoke"}'`
-  4. Revoke the same grant again through the terminal. Get the grant id from `api $TOKEN_CAROL GET /v1/principals` (before step 2, or from the audit trail), then
-     `api $TOKEN_CAROL POST /v1/role-grants/<grant id>/revoke '{"reason":"again"}'`
+  4. Revoke the same grant again through the terminal. Revoked grants no longer appear in `/v1/principals`, so take the id from the audit trail: `GRANT_ID=$(last_revoked)` with the local Keycloak (otherwise the `entity_id` of the latest `role.revoked` event), then
+     `api $TOKEN_CAROL POST /v1/role-grants/$GRANT_ID/revoke '{"reason":"again"}'`
   5. As carol, grant `reviewer` to bob again (reason `back on QA rota`). Bob retries step 3.
 - **Expected:**
   - Step 2: the form refuses an empty reason. After the revoke, "Revoked reviewer from bob." and bob's roles show "None".
