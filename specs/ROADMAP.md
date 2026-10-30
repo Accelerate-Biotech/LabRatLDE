@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | Rob Bassett |
-| **Updated** | 2026-10-26 |
+| **Updated** | 2026-10-30 |
 | **Baseline** | [`SPEC-001`](implemented/SPEC-001-core-integrity/requirements.md) (Implemented) at commit `76a7ff0` |
 
 This is the plan for getting from the scaffold to a regulated pilot and beyond. Each spec is a folder holding `requirements.md`, `design.md` and `tasks.md` (template in `TEMPLATE/`); once implemented and verified it moves to `implemented/` with a `uat.md` user acceptance test plan. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
@@ -14,7 +14,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-003 | [Immutable protocol versions](implemented/SPEC-003-protocol-versions/requirements.md) | Implemented |
 | SPEC-004 | [Traceability harness](implemented/SPEC-004-traceability-harness/requirements.md) | Implemented |
 | SPEC-005 | [UI stack and workspace shell](implemented/SPEC-005-ui-workspace-shell/requirements.md) | Implemented |
-| SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Draft |
+| SPEC-006 | [Identity and roles](implemented/SPEC-006-identity-and-roles/requirements.md) | Implemented |
 | SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
 | SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures/requirements.md) | Draft |
 | SPEC-009 | [Schema registry and schema-driven forms](SPEC-009-schema-registry-and-forms/requirements.md) | Draft |
@@ -29,6 +29,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-018 | [Audit chain anchoring](SPEC-018-chain-anchoring/requirements.md) | Draft |
 | SPEC-019 | [CLI (optional)](SPEC-019-cli/requirements.md) | Draft |
 | SPEC-020 | Validation documentation | Brief only (§5, Phase 1) |
+| SPEC-021 | [Reference identity broker and IdP recipes](SPEC-021-identity-broker/requirements.md) | Draft |
 
 **SQLSTATE registry** (custom codes raised by triggers): `LDE01` lineage cycle (SPEC-001), `LDE02` forged or non-extending audit event (SPEC-001), `LDE03` immutable/append-only record (SPEC-001, reused), `LDE04` sealed record (SPEC-002), `LDE05` role denied (SPEC-006), `LDE06` invalid schema reference (SPEC-009), `LDE07` signature rule violation (SPEC-008).
 
@@ -127,6 +128,7 @@ Notes are first-class, revisioned Markdown attached to runs and nodes. Policy de
 | SPEC-006 | Identity and roles | OIDC bearer tokens; tenant from claims; principal kinds `human` / `service` / `agent` (`on_behalf_of`); roles `scientist`, `reviewer`, `schema_steward` (per namespace), `qa`, `admin`; role grants audited; role-gated actions checked in the DB; dev headers only in `LDE_ENV=dev`. UI: login, my roles | No tenant access without auth; role gates; prod rejects dev headers | 11.10(d), (g), 11.300 | 005 |
 | SPEC-007 | Revisions, change sets and notes | §4 above: revision tables, the change-set lifecycle, `log`/`diff`/`blame`, notes, reviewed changes to sealed records. UI: history/diff panel, notes editor, review inbox | Revisions never altered or removed (DB); a correction keeps the prior value; commits are atomic; sealed records change only through a reviewed change set | 11.10(e) | 002, 006 |
 | SPEC-008 | Electronic signatures v2 | `signatures` record (signer, printed name, controlled meaning, time, manifest digest of the signed revision: run + datasets + notes); step-up re-auth; ordered multi-signature policy; a correction invalidates signatures; agents and services can't sign (DB). UI: sign dialog with re-auth, sign-off inbox | Manifest binding; invalidation on correction; agents can't sign; re-auth freshness; sealing | 11.50, 11.70, 11.100, 11.200 | 002, 006, 007 |
+| SPEC-021 | Reference identity broker and IdP recipes | LabRat stays OIDC-only. A hardened Keycloak realm template (one per tenant) brokers a site's SAML or OIDC IdP and issues LabRat-shaped tokens; it allows no local passwords and no email linking, and passes re-auth upstream. `labrat idp-check` diagnoses tokens through `identify`'s own path. Recipes for Entra and Okta direct, SAML and Entra via the broker, each verified on a real tenant. The org operates the broker | Broker token shape; bad SAML refused; no local login or email linking; `prompt=login` forces upstream re-auth (Playwright, against Keycloak and a test SAML IdP) | 11.10(d), 11.100(a), 11.200(a), 11.300(b) | 006 |
 | SPEC-020 | Validation documentation | Risk assessment justifying the `Test: yes` selection; IQ/OQ protocol templates with pre-execution approval; tests record expected vs actual results into the SPEC-004 report; compiled OQ test binaries (`go test -c`) runnable on the installed system without source | Expected and actual results captured for every `Test: yes` requirement | 11.10(a); GAMP 5 | 004, 008 |
 
 ### Phase 2: Structured data and schema governance
@@ -165,7 +167,8 @@ Notes are first-class, revisioned Markdown attached to runs and nodes. Policy de
 ```
 002 Sealing ─┐
 003 Protocols ┼─► 006 Identity ─► 007 Revisions ─► 008 Signatures ─► regulated pilot
-005 UI shell ─┘                                          │
+005 UI shell ─┘        └─► 021 Broker & IdP recipes ──────────┘ (pilot sites on SAML-only or fiddly IdPs)
+                                                         │
 004 Traceability harness grows alongside every spec       └─► 009 Schemas ─► 010 Governance
 ```
 

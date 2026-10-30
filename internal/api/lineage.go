@@ -63,7 +63,7 @@ func (s *Server) createNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id string
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) (err error) {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) (err error) {
 		id, err = insertNode(ctx, tx, p, req.Kind, req.Label, req.Attrs)
 		return err
 	})
@@ -85,7 +85,7 @@ func (s *Server) createEdge(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, badRequest("from and to must be lineage node uuids"))
 		return
 	}
-	if err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error { return insertEdge(ctx, tx, p, e) }); err != nil {
+	if err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error { return insertEdge(ctx, tx, p, e) }); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -113,7 +113,7 @@ func (s *Server) getLineage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	g := domain.NewGraph()
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			WITH RECURSIVE
 			up (id) AS (

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,14 +48,71 @@ func newTenant(t *testing.T, db *storage.DB) string {
 	if err := db.EnsureTenant(context.Background(), id, "t-"+id[:8], "test"); err != nil {
 		t.Fatal(err)
 	}
+	testers.Store(id, newPrincipal(t, db, id, "it@lab", "human", "scientist", "reviewer", "qa", "admin"))
 	return id
+}
+
+// testers maps each newTenant tenant to its it@lab principal.
+var testers sync.Map
+
+// as returns the principal the tests act as in tenant.
+func as(tenant string) storage.Principal {
+	p, _ := testers.Load(tenant)
+	return p.(storage.Principal)
+}
+
+// newPrincipal creates a principal (subject = handle at https://idp.test)
+// holding roles, granted by itself, as the owner, with the audit events its
+// rows need.
+func newPrincipal(t *testing.T, db *storage.DB, tenant, handle, kind string, roles ...string) storage.Principal {
+	t.Helper()
+	ctx := context.Background()
+	var p storage.Principal
+	err := db.WithOwner(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, insertPrincipal, tenant, kind, handle).Scan(&p.ID); err != nil {
+			return err
+		}
+		_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+			Actor: "system:test", Action: "principal.created", EntityType: "principal", EntityID: p.ID,
+			Payload: map[string]any{"handle": handle, "kind": kind},
+		})
+		for _, role := range roles {
+			if err != nil {
+				return err
+			}
+			_, err = grantRole(ctx, tx, tenant, "system:test", p.ID, p.ID, role, "fixture", true)
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// grantRole inserts a tenant-wide grant of role to principalID and, when
+// audited, its role.granted event. As lde_app the trigger replaces grantedBy.
+func grantRole(ctx context.Context, tx pgx.Tx, tenant, actor, principalID, grantedBy, role, reason string, audited bool) (string, error) {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO role_grants (tenant_id, principal_id, role, reason, granted_by)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, tenant, principalID, role, reason, grantedBy).Scan(&id); err != nil {
+		return "", err
+	}
+	if !audited {
+		return id, nil
+	}
+	_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+		Actor: actor, Action: "role.granted", EntityType: "role_grant", EntityID: id, Reason: reason,
+		Payload: map[string]any{"principal_id": principalID, "role": role},
+	})
+	return id, err
 }
 
 func appendN(t *testing.T, db *storage.DB, tenant string, n int) {
 	t.Helper()
 	ctx := context.Background()
 	for i := 0; i < n; i++ {
-		err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+		err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 			_, err := audit.Append(ctx, tx, tenant, audit.Entry{
 				Actor: "it@lab", Action: "test.event", EntityType: "test", EntityID: fmt.Sprint(i),
 				Reason: "ünïcödé reason", Payload: map[string]any{"i": i, "html": "<b>&</b>"},
@@ -71,16 +129,20 @@ func appendN(t *testing.T, db *storage.DB, tenant string, n int) {
 func TestDatabaseAndEngineAgreeOnChain(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
+	ctx := context.Background()
+	var fixtureEvents int64 // newTenant's principal and role grants
+	if err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE tenant_id = $1`, tenant).Scan(&fixtureEvents); err != nil {
+		t.Fatal(err)
+	}
 	appendN(t, db, tenant, 5)
 
-	ctx := context.Background()
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		rep, err := audit.VerifyTenant(ctx, tx, tenant)
 		if err != nil {
 			return err
 		}
-		if !rep.Valid || rep.Events != 5 {
-			t.Fatalf("engine verify: %+v", rep)
+		if !rep.Valid || rep.Events != fixtureEvents+5 {
+			t.Fatalf("engine verify: %+v, want %d events", rep, fixtureEvents+5)
 		}
 		var headHash string
 		var broken *int64
@@ -102,7 +164,7 @@ func TestDatabaseRejectsForgedEvent(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
 	ctx := context.Background()
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		ev, err := audit.Seal(tenant, audit.Head{Hash: audit.Genesis}, time.Now(), audit.Entry{
 			Actor: "mallory", Action: "forge", EntityType: "x", EntityID: "1",
 		})
@@ -133,7 +195,7 @@ func TestLedgerIsAppendOnly(t *testing.T) {
 		`DELETE FROM audit_events`,
 		`TRUNCATE audit_events`,
 	} {
-		err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, stmt); return err })
+		err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error { _, err := tx.Exec(ctx, stmt); return err })
 		if err == nil {
 			t.Errorf("%q succeeded as the app role", stmt)
 		}
@@ -151,7 +213,7 @@ func TestRowLevelSecurityIsolatesTenants(t *testing.T) {
 	appendN(t, db, a, 2)
 	ctx := context.Background()
 	var visible int
-	err := db.WithTenant(ctx, b, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, b, as(b), func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE tenant_id = $1`, a).Scan(&visible)
 	})
 	if err != nil || visible != 0 {
@@ -176,7 +238,7 @@ func newSealFixture(t *testing.T, db *storage.DB, state string) sealFixture {
 	t.Helper()
 	ctx := context.Background()
 	f := sealFixture{tenant: newTenant(t, db)}
-	err := db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
 		for _, n := range []struct {
 			id   *string
 			kind string
@@ -246,7 +308,7 @@ func TestSealedSet(t *testing.T) {
 			want bool
 		}{"R": {f.r, tc.sealed}, "D": {f.d, tc.sealed}, "S": {f.s, false}, "I": {f.i, false}} {
 			var got bool
-			err := db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error {
+			err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
 				return tx.QueryRow(ctx, `SELECT lineage_node_sealed($1)`, c.node).Scan(&got)
 			})
 			if err != nil || got != c.want {
@@ -274,7 +336,7 @@ func TestSealedNodesGainNoInputsOrOutputs(t *testing.T) {
 		{"R03 new dataset generated by signed run", "dataset", f.r, fresh, "wasGeneratedBy", storage.CodeSealed},
 		{"R04 new analysis uses sealed dataset", "analysis", f.d, fresh, "used", ""},
 	} {
-		err := db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error {
+		err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
 			var id string
 			if err := tx.QueryRow(ctx, insertNode, f.tenant, tc.kind).Scan(&id); err != nil {
 				return err
@@ -321,7 +383,7 @@ func TestReadingsOnlyFromCreatingTransaction(t *testing.T) {
 
 	f := newSealFixture(t, db, "running")
 	var d3 string
-	err = db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, insertNode, f.tenant, "dataset").Scan(&d3); err != nil {
 			return err
 		}
@@ -332,7 +394,7 @@ func TestReadingsOnlyFromCreatingTransaction(t *testing.T) {
 		return err
 	})
 	wantCode(t, "R07 creating transaction writes readings", err, "")
-	err = db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, insertReadings, f.tenant, f.instID, d3, 1)
 		return err
 	})
@@ -351,7 +413,7 @@ func TestAppRoleCannotUpdateUnusedTables(t *testing.T) {
 		{`UPDATE instruments SET name = 'x'`, insufficientPrivilege},
 		{`UPDATE runs SET params = '{"x":1}'`, ""},
 	} {
-		err := db.WithTenant(ctx, f.tenant, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, tc.stmt); return err })
+		err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error { _, err := tx.Exec(ctx, tc.stmt); return err })
 		wantCode(t, tc.stmt, err, tc.want)
 	}
 }
@@ -406,7 +468,7 @@ func TestProtocolVersionHash(t *testing.T) {
 	tenant := newTenant(t, db)
 	ctx := context.Background()
 	var id string
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		exp := newExperiment(t, tx, tenant, "hash")
 		id, _ = newProtocolVersion(t, tx, tenant, exp, 1, "# A\n")
 		return nil
@@ -415,7 +477,7 @@ func TestProtocolVersionHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []byte
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT sha256 FROM protocol_versions WHERE id = $1`, id).Scan(&got)
 	})
 	want := sha256.Sum256([]byte("# A\n"))
@@ -423,7 +485,7 @@ func TestProtocolVersionHash(t *testing.T) {
 		t.Fatalf("sha256 = %x, want %x (err %v)", got, want, err)
 	}
 	// The hash is computed by the database, so a supplied value is refused.
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		exp := newExperiment(t, tx, tenant, "hash-forged")
 		var node string
 		if err := tx.QueryRow(ctx, insertNode, tenant, "protocol").Scan(&node); err != nil {
@@ -441,7 +503,7 @@ func TestProtocolVersionsAreAppendOnly(t *testing.T) {
 	db := openTestDB(t)
 	tenant := newTenant(t, db)
 	ctx := context.Background()
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		exp := newExperiment(t, tx, tenant, "append")
 		newProtocolVersion(t, tx, tenant, exp, 1, "# v1")
 		return nil
@@ -454,7 +516,7 @@ func TestProtocolVersionsAreAppendOnly(t *testing.T) {
 		`DELETE FROM protocol_versions WHERE tenant_id = $1`,
 	} {
 		// A failing statement aborts its transaction, so each gets a fresh one.
-		err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, stmt, tenant); return err })
+		err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error { _, err := tx.Exec(ctx, stmt, tenant); return err })
 		wantCode(t, "app role: "+stmt, err, "42501") // no grant for lde_app
 		// Even the owner, bypassing WithTenant, is stopped by the triggers.
 		_, err = db.Pool.Exec(ctx, stmt, tenant)
@@ -470,7 +532,7 @@ func TestProtocolVersionsAreGapless(t *testing.T) {
 	tenant := newTenant(t, db)
 	ctx := context.Background()
 	var e, f string
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		e = newExperiment(t, tx, tenant, "gapless-e")
 		newProtocolVersion(t, tx, tenant, e, 1, "v1")
 		newProtocolVersion(t, tx, tenant, e, 2, "v2")
@@ -481,12 +543,12 @@ func TestProtocolVersionsAreGapless(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		_, _, err := insertProtocolVersion(tx, tenant, e, 4, "v4")
 		return err
 	})
 	wantCode(t, "version 4 after 2 skips 3", err, "23514")
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		_, _, err := insertProtocolVersion(tx, tenant, e, 3, "v3")
 		return err
 	})
@@ -499,7 +561,7 @@ func TestRunProtocolMustBelongToExperiment(t *testing.T) {
 	tenant := newTenant(t, db)
 	ctx := context.Background()
 	var e, pe1, pf1 string
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		e = newExperiment(t, tx, tenant, "pin-e")
 		pe1, _ = newProtocolVersion(t, tx, tenant, e, 1, "pe1")
 		f := newExperiment(t, tx, tenant, "pin-f")
@@ -509,12 +571,12 @@ func TestRunProtocolMustBelongToExperiment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		_, err := insertRun(tx, tenant, e, pf1)
 		return err
 	})
 	wantCode(t, "run of E pinned to protocol of F", err, "23503")
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		_, err := insertRun(tx, tenant, e, pe1)
 		return err
 	})
@@ -527,7 +589,7 @@ func TestRunProtocolPinIsImmutable(t *testing.T) {
 	tenant := newTenant(t, db)
 	ctx := context.Background()
 	var runID, pe2 string
-	err := db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		e := newExperiment(t, tx, tenant, "immutable")
 		pe1, _ := newProtocolVersion(t, tx, tenant, e, 1, "v1")
 		pe2, _ = newProtocolVersion(t, tx, tenant, e, 2, "v2")
@@ -539,7 +601,7 @@ func TestRunProtocolPinIsImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	const repin = `UPDATE runs SET protocol_version_id = $2 WHERE id = $1`
-	err = db.WithTenant(ctx, tenant, func(tx pgx.Tx) error {
+	err = db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, repin, runID, pe2)
 		return err
 	})
@@ -548,4 +610,266 @@ func TestRunProtocolPinIsImmutable(t *testing.T) {
 	wantCode(t, "owner re-pins planned run", err, storage.CodeAppendOnly)
 	_, err = db.Pool.Exec(ctx, `UPDATE runs SET state = 'running' WHERE id = $1`, runID)
 	wantCode(t, "owner starts run without touching the pin", err, "")
+}
+
+// insertPrincipal takes tenant, kind and handle; the subject is the handle.
+const insertPrincipal = `INSERT INTO principals (tenant_id, kind, handle, issuer, subject)
+	VALUES ($1, $2, $3, 'https://idp.test', $3) RETURNING id`
+
+// SPEC-006-R04
+func TestPrincipalHandlesUniqueAndImmutable(t *testing.T) {
+	db := openTestDB(t)
+	t1, t2 := newTenant(t, db), newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, t1, "alice", "human").ID
+	_, err := db.Pool.Exec(ctx, `INSERT INTO principals (tenant_id, kind, handle, issuer, subject)
+		VALUES ($1, 'human', 'alice', 'https://idp.test', 'alice-2')`, t1)
+	wantCode(t, "second alice in T1", err, "23505")
+	newPrincipal(t, db, t2, "alice", "human") // fails the test if T2 rejects alice
+	for _, stmt := range []string{
+		`UPDATE principals SET handle = 'al' WHERE id = $1`,
+		`UPDATE principals SET subject = 'x' WHERE id = $1`,
+		`DELETE FROM principals WHERE id = $1`,
+	} {
+		_, err := db.Pool.Exec(ctx, stmt, alice)
+		wantCode(t, stmt, err, storage.CodeAppendOnly)
+	}
+}
+
+// SPEC-006-R05
+func TestRoleGrantsAdminOnlyAndAudited(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+
+	err := db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "alice", alice.ID, alice.ID, "reviewer", "self", true)
+		return err
+	})
+	wantCode(t, "alice grants herself reviewer", err, storage.CodeRoleDenied)
+
+	var grant string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) (err error) {
+		grant, err = grantRole(ctx, tx, tenant, "carol", alice.ID, alice.ID, "reviewer", "cover for bob", true)
+		return err
+	})
+	wantCode(t, "carol grants alice reviewer", err, "")
+	var grantedBy, action, reason string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT g.granted_by::text, a.action, a.reason FROM role_grants g
+			JOIN audit_events a ON a.entity_type = 'role_grant' AND a.entity_id = g.id::text
+			WHERE g.id = $1`, grant).Scan(&grantedBy, &action, &reason)
+	})
+	if err != nil || grantedBy != carol.ID || action != "role.granted" || reason != "cover for bob" {
+		t.Errorf("grant: granted_by %s (carol %s), event %q %q, err %v", grantedBy, carol.ID, action, reason, err)
+	}
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "carol", alice.ID, carol.ID, "qa", "no event", false)
+		return err
+	})
+	wantCode(t, "grant with no audit event", err, storage.CodeAuditLink)
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := grantRole(ctx, tx, tenant, "carol", alice.ID, carol.ID, "qa", " ", true)
+		return err
+	})
+	wantCode(t, "grant with blank reason", err, "23514")
+
+	revoke := func() error {
+		return db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE role_grants SET revoked_by = $2, revoked_at = now(), revoke_reason = 'bob is back'
+				WHERE id = $1`, grant, alice.ID); err != nil {
+				return err
+			}
+			_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+				Actor: "carol", Action: "role.revoked", EntityType: "role_grant", EntityID: grant, Reason: "bob is back",
+			})
+			return err
+		})
+	}
+	wantCode(t, "carol revokes", revoke(), "")
+	var revokedBy string
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT revoked_by::text FROM role_grants WHERE id = $1`, grant).Scan(&revokedBy)
+	})
+	if err != nil || revokedBy != carol.ID {
+		t.Errorf("revoked_by %s, want carol %s (err %v)", revokedBy, carol.ID, err)
+	}
+	wantCode(t, "carol revokes again", revoke(), storage.CodeAppendOnly)
+	_, err = db.Pool.Exec(ctx, `DELETE FROM role_grants WHERE id = $1`, grant)
+	wantCode(t, "owner deletes grant", err, storage.CodeAppendOnly)
+}
+
+// delegate inserts a delegation from human to agent, with its
+// delegation.created event, as whoever tx acts as.
+func delegate(ctx context.Context, tx pgx.Tx, tenant, actor, agentID, humanID, createdBy string) (string, error) {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO agent_delegations (tenant_id, agent_id, human_id, reason, created_by)
+		VALUES ($1, $2, $3, 'fixture', $4) RETURNING id`, tenant, agentID, humanID, createdBy).Scan(&id); err != nil {
+		return "", err
+	}
+	_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+		Actor: actor, Action: "delegation.created", EntityType: "agent_delegation", EntityID: id, Reason: "fixture",
+	})
+	return id, err
+}
+
+// SPEC-006-R08
+func TestAgentRolesIntersectHuman(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+	bot := newPrincipal(t, db, tenant, "bot", "agent", "scientist", "reviewer")
+	forAlice := storage.Principal{ID: bot.ID, OnBehalfOf: alice.ID}
+
+	holds := func(what string, as storage.Principal, role string, want bool) {
+		t.Helper()
+		var got bool
+		err := db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT lde_has_role($1)`, role).Scan(&got)
+		})
+		if err != nil || got != want {
+			t.Errorf("%s holds %s = %v, want %v (err %v)", what, role, got, want, err)
+		}
+	}
+	holds("bot for alice, no delegation", forAlice, "scientist", false)
+	holds("bot for alice, no delegation", forAlice, "reviewer", false)
+
+	var id string
+	err := db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) (err error) {
+		id, err = delegate(ctx, tx, tenant, "carol", bot.ID, alice.ID, carol.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	holds("bot for alice", forAlice, "scientist", true)
+	holds("bot for alice", forAlice, "reviewer", false)
+	holds("bot for carol", storage.Principal{ID: bot.ID, OnBehalfOf: carol.ID}, "scientist", false)
+	holds("bot for nobody", storage.Principal{ID: bot.ID}, "scientist", false)
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE agent_delegations SET ended_by = $2, ended_at = now() WHERE id = $1`,
+			id, carol.ID); err != nil {
+			return err
+		}
+		_, err := audit.Append(ctx, tx, tenant, audit.Entry{
+			Actor: "carol", Action: "delegation.ended", EntityType: "agent_delegation", EntityID: id,
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	holds("bot for alice, delegation ended", forAlice, "scientist", false)
+
+	err = db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "alice", bot.ID, alice.ID, alice.ID)
+		return err
+	})
+	wantCode(t, "alice delegates", err, storage.CodeRoleDenied)
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "carol", carol.ID, alice.ID, carol.ID)
+		return err
+	})
+	wantCode(t, "delegation to a human", err, "23514")
+}
+
+// SPEC-006-R06, SPEC-006-R08
+func TestRoleGatesOnLabRecords(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	alice := newPrincipal(t, db, tenant, "alice", "human", "scientist")
+	bob := newPrincipal(t, db, tenant, "bob", "human", "reviewer")
+	carol := newPrincipal(t, db, tenant, "carol", "human", "admin")
+	bot := newPrincipal(t, db, tenant, "bot", "agent", "scientist", "reviewer")
+
+	// Alice, a scientist, records an experiment with two completed runs.
+	var run1, run2 string
+	err := db.WithTenant(ctx, tenant, alice, func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "gates")
+		pv, _ := newProtocolVersion(t, tx, tenant, exp, 1, "# p\n")
+		var err error
+		if run1, err = insertRun(tx, tenant, exp, pv); err != nil {
+			return err
+		}
+		if run2, err = insertRun(tx, tenant, exp, pv); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `UPDATE runs SET state = 'completed'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sign := func(as storage.Principal, run string) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, `UPDATE runs SET state = 'signed' WHERE id = $1`, run)
+			return err
+		})
+	}
+	addNode := func(as storage.Principal) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, insertNode, tenant, "sample")
+			return err
+		})
+	}
+	wantCode(t, "alice (scientist) signs", sign(alice, run1), storage.CodeRoleDenied)
+	wantCode(t, "bob (reviewer) signs", sign(bob, run1), "")
+	wantCode(t, "bob (reviewer) creates a node", addNode(bob), storage.CodeRoleDenied)
+	wantCode(t, "nobody creates a node", addNode(storage.Principal{}), storage.CodeRoleDenied)
+
+	err = db.WithTenant(ctx, tenant, carol, func(tx pgx.Tx) error {
+		_, err := delegate(ctx, tx, tenant, "carol", bot.ID, alice.ID, carol.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	botForAlice := storage.Principal{ID: bot.ID, OnBehalfOf: alice.ID}
+	wantCode(t, "bot for alice creates a node", addNode(botForAlice), "")
+	wantCode(t, "bot for alice signs", sign(botForAlice, run2), storage.CodeRoleDenied)
+}
+
+// SPEC-006-R06: signing is the only change a reviewer may make.
+func TestSigningChangesNothingElse(t *testing.T) {
+	db := openTestDB(t)
+	tenant := newTenant(t, db)
+	ctx := context.Background()
+	bob := newPrincipal(t, db, tenant, "bob", "human", "reviewer")
+
+	runs := make([]string, 3)
+	err := db.WithTenant(ctx, tenant, as(tenant), func(tx pgx.Tx) error {
+		exp := newExperiment(t, tx, tenant, "sign-only")
+		pv, _ := newProtocolVersion(t, tx, tenant, exp, 1, "# p\n")
+		for i := range runs {
+			var err error
+			if runs[i], err = insertRun(tx, tenant, exp, pv); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(ctx, `UPDATE runs SET state = 'completed'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exec := func(as storage.Principal, stmt, run string) error {
+		return db.WithTenant(ctx, tenant, as, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, stmt, run)
+			return err
+		})
+	}
+	const signAndEdit = `UPDATE runs SET state = 'signed', params = '{"tampered": true}' WHERE id = $1`
+	const signOnly = `UPDATE runs SET state = 'signed', started_at = started_at, finished_at = finished_at WHERE id = $1`
+	wantCode(t, "bob (reviewer) signs and edits params", exec(bob, signAndEdit, runs[0]), storage.CodeRoleDenied)
+	wantCode(t, "it@lab (scientist and reviewer) signs and edits params", exec(as(tenant), signAndEdit, runs[1]), "")
+	wantCode(t, "bob (reviewer) signs, rewriting unchanged columns", exec(bob, signOnly, runs[2]), "")
 }

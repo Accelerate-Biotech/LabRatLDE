@@ -8,7 +8,65 @@ export const DEV_TENANT = '00000000-0000-4000-8000-000000000001';
 
 export type Page<T> = { items: T[]; next_cursor: string | null };
 
-export type Meta = { env: 'dev' | 'prod' };
+export type OIDCSettings = { issuer: string; client_id: string; scopes: string };
+
+export type Meta = { env: 'dev' | 'prod'; idle_timeout_seconds: number; oidc?: OIDCSettings };
+
+export type PrincipalKind = 'human' | 'service' | 'agent';
+
+export type Role = 'scientist' | 'reviewer' | 'qa' | 'admin' | 'schema_steward';
+
+export const TENANT_ROLES: Role[] = ['scientist', 'reviewer', 'qa', 'admin'];
+
+export type RoleGrant = {
+  id: string;
+  principal_id: string;
+  role: Role;
+  scope: string | null;
+  reason: string;
+  granted_by: string;
+  granted_at: string;
+  revoked_by: string | null;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+};
+
+export type Principal = {
+  id: string;
+  tenant_id: string;
+  kind: PrincipalKind;
+  handle: string;
+  display_name: string;
+  email: string;
+  issuer: string;
+  subject: string;
+  enabled: boolean;
+  created_at: string;
+  roles: RoleGrant[];
+};
+
+export type Me = Principal & { actor: string; on_behalf_of: string | null; auth: 'dev' | 'oidc' };
+
+export type Delegation = {
+  id: string;
+  agent_id: string;
+  human_id: string;
+  agent_handle: string;
+  human_handle: string;
+  reason: string;
+  created_by: string;
+  created_at: string;
+};
+
+export type NewPrincipal = {
+  kind: PrincipalKind;
+  handle: string;
+  display_name: string;
+  email: string;
+  issuer: string;
+  subject: string;
+  reason: string;
+};
 
 export type ExperimentSummary = { id: string; slug: string; title: string; created_at: string };
 
@@ -153,14 +211,35 @@ export function clearSession(): void {
   }
 }
 
-async function get<T>(path: string): Promise<T> {
-  const headers: Record<string, string> = {};
-  const tenant = stored(TENANT_KEY);
-  const actor = stored(ACTOR_KEY);
-  if (tenant) headers['X-LDE-Tenant'] = tenant;
-  if (actor) headers['X-LDE-Actor'] = actor;
+// The OIDC access token lives in memory only (SPEC-006 design §3): a reload
+// signs in again.
+let accessToken: string | null = null;
+let onUnauthorized: () => void = () => {};
 
-  const res = await fetch(path, { headers });
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+// setUnauthorizedHandler registers what to do when the server rejects the
+// credentials (an expired token): App returns to sign-in.
+export function setUnauthorizedHandler(fn: () => void): void {
+  onUnauthorized = fn;
+}
+
+async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  } else {
+    const tenant = stored(TENANT_KEY);
+    const actor = stored(ACTOR_KEY);
+    if (tenant) headers['X-LDE-Tenant'] = tenant;
+    if (actor) headers['X-LDE-Actor'] = actor;
+  }
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (res.status === 401 && path !== '/v1/meta') onUnauthorized();
   if (!res.ok) {
     let msg: string | undefined;
     try {
@@ -172,6 +251,14 @@ async function get<T>(path: string): Promise<T> {
     throw new Error(msg ?? String(res.status));
   }
   return res.json() as Promise<T>;
+}
+
+function get<T>(path: string): Promise<T> {
+  return request<T>('GET', path);
+}
+
+function post<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('POST', path, body);
 }
 
 // qs builds a query string from the defined, non-empty params.
@@ -227,4 +314,40 @@ export function listAuditEvents(after: number, entityType?: string, entityId?: s
 
 export function verifyAudit(): Promise<AuditVerify> {
   return get('/v1/audit/verify');
+}
+
+export function getMe(): Promise<Me> {
+  return get('/v1/me');
+}
+
+export function listPrincipals(cursor?: string): Promise<Page<Principal>> {
+  return get(`/v1/principals${qs({ cursor, limit: '200' })}`);
+}
+
+export function createPrincipal(p: NewPrincipal): Promise<Principal> {
+  return post('/v1/principals', p);
+}
+
+export function disablePrincipal(id: string, reason: string): Promise<Principal> {
+  return post(`/v1/principals/${encodeURIComponent(id)}/disable`, { reason });
+}
+
+export function grantRole(principalId: string, role: Role, reason: string, scope = ''): Promise<RoleGrant> {
+  return post('/v1/role-grants', { principal_id: principalId, role, scope, reason });
+}
+
+export function revokeRole(grantId: string, reason: string): Promise<RoleGrant> {
+  return post(`/v1/role-grants/${encodeURIComponent(grantId)}/revoke`, { reason });
+}
+
+export function listDelegations(): Promise<{ items: Delegation[] }> {
+  return get('/v1/agent-delegations');
+}
+
+export function createDelegation(agentId: string, humanId: string, reason: string): Promise<Delegation> {
+  return post('/v1/agent-delegations', { agent_id: agentId, human_id: humanId, reason });
+}
+
+export function endDelegation(id: string, reason: string): Promise<Delegation> {
+  return post(`/v1/agent-delegations/${encodeURIComponent(id)}/end`, { reason });
 }

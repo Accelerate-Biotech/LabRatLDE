@@ -8,7 +8,7 @@ import {
   type Page,
   type RunSummary,
 } from './api';
-import type { Tab } from './tabs';
+import { SINGLETONS, type Tab } from './tabs';
 
 type List<T> = { items: T[]; next: string | null; loading: boolean; error: string | null };
 
@@ -240,9 +240,12 @@ export default function Explorer({ open, onLoaded }: { open: (tab: Tab) => void;
         itemKey="audit"
         level={1}
         focusKey={fk}
-        onActivate={() => open({ kind: 'audit', id: 'audit', title: 'Audit trail' })}
+        onActivate={() => open(SINGLETONS.audit!)}
         label="Audit trail"
       />
+      {(['me', 'principals', 'delegations'] as const).map((k) => (
+        <Item key={k} itemKey={k} level={1} focusKey={fk} onActivate={() => open(SINGLETONS[k]!)} label={SINGLETONS[k]!.title} />
+      ))}
     </ul>
   );
 }

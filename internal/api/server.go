@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/config"
@@ -25,25 +26,42 @@ import (
 
 const maxJSONBody = 1 << 20
 
-type Server struct {
-	cfg config.Config
-	db  *storage.DB
-	log *slog.Logger
+// TokenVerifier checks a bearer JWT's signature, issuer, audience and expiry.
+// *oidc.IDTokenVerifier satisfies it.
+type TokenVerifier interface {
+	Verify(ctx context.Context, rawToken string) (*oidc.IDToken, error)
 }
 
-func New(cfg config.Config, db *storage.DB, log *slog.Logger) *Server {
-	return &Server{cfg: cfg, db: db, log: log}
+type Server struct {
+	cfg      config.Config
+	db       *storage.DB
+	log      *slog.Logger
+	verifier TokenVerifier // nil in dev
+}
+
+func New(cfg config.Config, db *storage.DB, log *slog.Logger, verifier TokenVerifier) *Server {
+	return &Server{cfg: cfg, db: db, log: log, verifier: verifier}
 }
 
 // Handler returns the fully wired router.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
-	// Outside identify: the UI reads this before sign-in, and in prod identify
-	// refuses every request until OIDC is wired.
+	// Outside identify: the UI reads this before sign-in, to learn where to
+	// sign in.
 	mux.HandleFunc("GET /v1/meta", s.meta)
 
 	v1 := http.NewServeMux()
+	v1.HandleFunc("GET /v1/me", s.getMe)
+	v1.HandleFunc("GET /v1/principals", s.listPrincipals)
+	v1.HandleFunc("POST /v1/principals", s.createPrincipal)
+	v1.HandleFunc("POST /v1/principals/{id}/disable", s.disablePrincipal)
+	v1.HandleFunc("POST /v1/role-grants", s.createRoleGrant)
+	v1.HandleFunc("POST /v1/role-grants/{id}/revoke", s.revokeRoleGrant)
+	v1.HandleFunc("GET /v1/agent-delegations", s.listDelegations)
+	v1.HandleFunc("POST /v1/agent-delegations", s.createDelegation)
+	v1.HandleFunc("POST /v1/agent-delegations/{id}/end", s.endDelegation)
+
 	v1.HandleFunc("POST /v1/experiments", s.createExperiment)
 	v1.HandleFunc("GET /v1/experiments", s.listExperiments)
 	v1.HandleFunc("GET /v1/experiments/{id}", s.getExperiment)
@@ -70,8 +88,21 @@ func (s *Server) Handler() http.Handler {
 
 	mux.Handle("/v1/", s.identify(v1))
 	// No method in the pattern: "GET /" would conflict with "/v1/" in the 1.22 mux.
-	mux.Handle("/", web.Handler())
+	mux.Handle("/", web.Handler(s.uiConnectSrc()...))
 	return s.logRequests(mux)
+}
+
+// uiConnectSrc is the issuer's origin in prod: the UI fetches OIDC discovery
+// and exchanges its code there.
+func (s *Server) uiConnectSrc() []string {
+	if s.cfg.Env != "prod" {
+		return nil
+	}
+	u, err := url.Parse(s.cfg.OIDCIssuer)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return nil
+	}
+	return []string{u.Scheme + "://" + u.Host}
 }
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
@@ -82,52 +113,28 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// meta is public: the environment, the UI idle timeout and, in prod, the
+// OIDC settings the UI signs in with.
 func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"env": s.cfg.Env})
+	type oidcMeta struct {
+		Issuer   string `json:"issuer"`
+		ClientID string `json:"client_id"`
+		Scopes   string `json:"scopes"`
+	}
+	m := struct {
+		Env                string    `json:"env"`
+		IdleTimeoutSeconds int       `json:"idle_timeout_seconds"`
+		OIDC               *oidcMeta `json:"oidc,omitempty"`
+	}{Env: s.cfg.Env, IdleTimeoutSeconds: int(s.cfg.UIIdleTimeout.Seconds())}
+	if s.cfg.Env == "prod" {
+		m.OIDC = &oidcMeta{Issuer: s.cfg.OIDCIssuer, ClientID: s.cfg.OIDCUIClientID, Scopes: s.cfg.OIDCUIScopes}
+	}
+	writeJSON(w, http.StatusOK, m)
 }
-
-// ---------------------------------------------------------------------------
-// Identity
-// ---------------------------------------------------------------------------
-
-// Principal is the authenticated caller. Every audit event records Actor.
-type Principal struct {
-	Tenant string
-	Actor  string
-}
-
-type principalKey struct{}
-
-func principal(ctx context.Context) Principal { return ctx.Value(principalKey{}).(Principal) }
 
 var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func validUUID(s string) bool { return uuidRE.MatchString(s) }
-
-// identify resolves the caller.
-//
-// SCAFFOLD ONLY: identity is taken from X-LDE-Tenant / X-LDE-Actor headers,
-// which is acceptable for local development and nothing else. Part 11
-// (§11.10(d), §11.300) requires authenticated, unique user identity: replace
-// this with OIDC bearer-token validation before any regulated use. The
-// server refuses to trust these headers when LDE_ENV=prod.
-func (s *Server) identify(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.cfg.Env == "prod" {
-			writeError(w, http.StatusNotImplemented, "authentication provider not configured (OIDC integration pending)")
-			return
-		}
-		p := Principal{
-			Tenant: strings.ToLower(r.Header.Get("X-LDE-Tenant")),
-			Actor:  strings.TrimSpace(r.Header.Get("X-LDE-Actor")),
-		}
-		if !validUUID(p.Tenant) || p.Actor == "" {
-			writeError(w, http.StatusUnauthorized, "X-LDE-Tenant (uuid) and X-LDE-Actor headers are required")
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)))
-	})
-}
 
 // ---------------------------------------------------------------------------
 // Plumbing
@@ -246,6 +253,10 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusBadRequest, err.Error())
 	case storage.IsBadReference(err):
 		writeError(w, http.StatusUnprocessableEntity, "referenced entity does not exist in this tenant")
+	case storage.IsRoleDenied(err):
+		writeError(w, http.StatusForbidden, storage.ErrorMessage(err))
+	case storage.IsInvalid(err):
+		writeError(w, http.StatusBadRequest, storage.ErrorMessage(err))
 	default:
 		s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")

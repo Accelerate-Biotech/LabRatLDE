@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
+
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/api"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/config"
 	"github.com/Accelerate-Biotech/LabRatLDE/internal/storage"
@@ -23,8 +25,13 @@ var version = "dev"
 
 func main() {
 	do := run
-	if len(os.Args) > 1 && os.Args[1] == "iq" {
-		do = func() error { return runIQ(os.Args[2:]) }
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "iq":
+			do = func() error { return runIQ(os.Args[2:]) }
+		case "bootstrap-admin":
+			do = func() error { return runBootstrapAdmin(os.Args[2:]) }
+		}
 	}
 	if err := do(); err != nil {
 		fmt.Fprintln(os.Stderr, "labrat:", err)
@@ -65,9 +72,23 @@ func run() error {
 		log.Info("dev tenant ready", "tenant_id", config.DevTenantID)
 	}
 
+	var verifier api.TokenVerifier
+	if cfg.Env == "prod" {
+		discoverCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		provider, err := oidc.NewProvider(discoverCtx, cfg.OIDCIssuer)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("oidc discovery for %s: %w", cfg.OIDCIssuer, err)
+		}
+		// The verifier caches the issuer's JWKS for the life of the process,
+		// refetching (on a background context) when it sees an unknown key id.
+		verifier = provider.Verifier(&oidc.Config{ClientID: cfg.OIDCAudience})
+		log.Info("oidc ready", "issuer", cfg.OIDCIssuer, "audience", cfg.OIDCAudience)
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           api.New(cfg, db, log).Handler(),
+		Handler:           api.New(cfg, db, log, verifier).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		// No Read/WriteTimeout: instrument streams are long-lived by

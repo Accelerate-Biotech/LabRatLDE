@@ -47,7 +47,7 @@ func (s *Server) createExperiment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	exp := experiment{Slug: req.Slug, Title: req.Title, ProtocolMD: req.ProtocolMD, CreatedBy: p.Actor}
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO experiments (tenant_id, slug, title, created_by)
 			VALUES ($1, $2, $3, $4)
@@ -94,7 +94,7 @@ func (s *Server) listExperiments(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time `json:"created_at"`
 	}
 	items := []summary{}
-	err = s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err = s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT id, slug, title, created_at FROM experiments
 			WHERE ($1::text = '' OR slug > (SELECT slug FROM experiments WHERE id = NULLIF($1::text, '')::uuid))
@@ -132,7 +132,7 @@ func (s *Server) getExperiment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var exp experiment
-	err := s.db.WithTenant(ctx, p.Tenant, func(tx pgx.Tx) error {
+	err := s.db.WithTenant(ctx, p.Tenant, p.As, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
 			SELECT e.id, e.slug, e.title, v.id, v.version, encode(v.sha256, 'hex'), v.protocol_md, v.protocol_meta,
 			       e.created_by, e.created_at
