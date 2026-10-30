@@ -346,7 +346,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - Verify: `npm run build`. With dev sign-in:
     - Edit run params with a reason: the marker appears and the audit viewer shows `record.revised`.
     - Saving with a blank reason is impossible.
-- [ ] 4.3 Revisions panel
+- [x] 4.3 Revisions panel
   - Requirements: SPEC-007-R07, SPEC-007-R08, SPEC-007-R09 (UI)
   - Files: `web/src/BottomPanel.tsx`, `web/src/styles.css`
   - Do:

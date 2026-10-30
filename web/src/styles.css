@@ -264,6 +264,11 @@ body {
   font-weight: normal;
 }
 
+.history.changes td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Views */
 .view h1 {
   margin: 0 0 0.25rem;
