@@ -356,7 +356,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - `BottomPanel` listens for `labrat:show-revisions` and switches to `Revisions`.
     - Refetch when the active tab changes, and on a `labrat:revised` window event, which `EditField` dispatches after a successful save. Add that dispatch in `EditField`.
   - Verify: `npm run build`. Edit a node twice, then compare revisions 1 and 3 in the panel. Use the keyboard only.
-- [ ] 4.4 Notes under the run view
+- [x] 4.4 Notes under the run view
   - Requirements: SPEC-007-R13 (UI)
   - Files: `web/src/Notes.tsx` (new), `web/src/RunView.tsx`, `web/src/styles.css`
   - Do:

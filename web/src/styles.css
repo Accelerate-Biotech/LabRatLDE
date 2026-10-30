@@ -576,3 +576,43 @@ body {
 .edit-form textarea.mono {
   font-family: ui-monospace, Consolas, monospace;
 }
+
+/* Notes under the run view (SPEC-007). */
+.note-list {
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.note-meta {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+}
+
+.note-tag {
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.note-body {
+  max-width: 70ch;
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.note-body p {
+  margin: 0.25rem 0;
+}
+
+.note-preview {
+  display: grid;
+  gap: 0.2rem;
+}

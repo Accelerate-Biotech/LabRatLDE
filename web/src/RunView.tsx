@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { blame, editRunParams, getRun, listAuditEvents, type AuditEvent, type RunDetail } from './api';
 import EditField from './EditField';
+import Notes from './Notes';
 import type { Tab } from './tabs';
 
 // The explorer supplies the tab title (the run label); RunDetail has none, so rename is unused.
@@ -148,6 +149,11 @@ export default function RunView({ id, open }: Props) {
           </tbody>
         </table>
       )}
+
+      <section>
+        <h2>Notes</h2>
+        <Notes nodeId={run.node_id} />
+      </section>
     </article>
   );
 }
