@@ -71,6 +71,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     7. With no change set, `UPDATE runs SET state = 'running' WHERE id = f.runID` succeeds. The database doesn't check state transitions, and `state` isn't revisable.
     8. Inside `commitChangeSet`, the case 1 statement succeeds.
     - Comment `// SPEC-007-R02`.
+  - Adjusted: the case 1 statement sets `attrs = '{"x": 1}'` rather than `'{}'`, because the fixture node's attrs are already `{}` and an unchanged value writes no revision and needs no change set.
   - Verify: fails only on the new tests (1.3 and 1.4).
   - Integrity: yes
 - [x] 1.5 Test: revisions are append-only for every role (SPEC-007-R03)
@@ -108,9 +109,10 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
         - `UPDATE runs SET state = 'running'` → `""`
       - `TestSealedNodesAreImmutable`: the "update unsealed sample" case now runs as `lde_app` (`db.WithTenant(…, as(f.tenant), …)`), after `commitChangeSet(ctx, tx, f.tenant, "it@lab", "fixture")` in the same transaction, and still expects success. The other three cases stay owner-run and unchanged.
       - `TestSigningChangesNothingElse`: the "it@lab signs and edits params" case runs `commitChangeSet(ctx, tx, tenant, "it@lab", "correct params at sign-off")` in the same transaction before the statement, and still expects success. Change only that case's `exec` call. Add a small inline closure if needed.
+  - Added after integrity review (FAIL, round 1): `record_revise()` uses `search_path = pg_catalog, public, pg_temp` and qualifies every relation as `public.<name>`, so `lde_app` can't shadow `change_sets` or `record_revisions` with temp tables. One extra case in `TestRevisableFieldsNeedChangeSet` covers it. Design §2 and the decision log are updated.
   - Verify: `make test-integration TEST_DB=…` passes, including 1.3, 1.4 and 1.5, and every existing test.
   - Integrity: yes
-- [ ] 1.7 Test: notes on sealed nodes are annotations (SPEC-007-R13)
+- [x] 1.7 Test: notes on sealed nodes are annotations (SPEC-007-R13)
   - Requirements: SPEC-007-R13
   - Files: `internal/storage/integration_test.go`
   - Do: add `TestNotesOnSealedNodes`. Start with `f := newSealFixture(t, db, "completed")`.
@@ -123,7 +125,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - Comment `// SPEC-007-R13`.
   - Verify: fails only on the new test.
   - Integrity: yes
-- [ ] 1.8 Migration `0013_notes`
+- [x] 1.8 Migration `0013_notes`
   - Requirements: SPEC-007-R13, SPEC-007-R01
   - Files: `internal/storage/migrations/0013_notes.sql`
   - Do:
@@ -134,7 +136,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
     - RLS, policies, and `GRANT SELECT, INSERT, UPDATE (body) ON notes TO lde_app`.
   - Verify: `make test-integration TEST_DB=…` passes, including 1.7.
   - Integrity: yes
-- [ ] 1.9 IQ trigger list
+- [x] 1.9 IQ trigger list
   - Requirements: SPEC-007-R01, SPEC-007-R03, SPEC-007-R06, SPEC-007-R13 (installation check)
   - Files: `cmd/server/iq.go`
   - Do: append these to `iqTriggers`:
@@ -148,7 +150,7 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
 
 ## Phase 2: Domain
 
-- [ ] 2.1 Diff and blame
+- [x] 2.1 Diff and blame
   - Requirements: SPEC-007-R07, SPEC-007-R08, SPEC-007-R09
   - Files: `internal/domain/revision.go` (new)
   - Do:

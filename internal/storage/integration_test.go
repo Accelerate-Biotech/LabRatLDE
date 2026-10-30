@@ -1168,6 +1168,24 @@ func TestRevisableFieldsNeedChangeSet(t *testing.T) {
 	if after := countRevs(); after != before {
 		t.Errorf("revisions of node: %d before, %d after the forged edit", before, after)
 	}
+
+	// TEMP tables named runs and lineage_edges must not switch off the
+	// sealed-params check (SPEC-007-R10).
+	sf := newSealFixture(t, db, "signed")
+	err = db.WithTenant(ctx, sf.tenant, as(sf.tenant), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE runs (tenant_id uuid, node_id uuid, state text) ON COMMIT DROP`); err != nil {
+			t.Skipf("lde_app cannot create temp tables: %v", err)
+		}
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE lineage_edges (tenant_id uuid, from_id uuid, to_id uuid, relation text) ON COMMIT DROP`); err != nil {
+			return err
+		}
+		if _, err := commitChangeSet(ctx, tx, sf.tenant, "it@lab", "shadowed params"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE public.runs SET params = '{"x": 1}' WHERE id = $1`, sf.runID)
+		return err
+	})
+	wantCode(t, "sealed run params with shadow tables", err, storage.CodeSealed)
 }
 
 // SPEC-007-R03
@@ -1196,4 +1214,90 @@ func TestRevisionsAreAppendOnly(t *testing.T) {
 		return err
 	})
 	wantCode(t, "app role inserts a revision", err, "42501")
+}
+
+// SPEC-007-R13
+func TestNotesOnSealedNodes(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	f := newSealFixture(t, db, "completed")
+	const insertNote = `INSERT INTO notes (tenant_id, node_id, body, created_by)
+		VALUES ($1, $2, $3, 'alice') RETURNING id, annotation`
+
+	var n1, n2 string
+	var annotation bool
+	err := db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, insertNote, f.tenant, f.r, "Thawed at 09:00").Scan(&n1, &annotation)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if annotation {
+		t.Error("note before signing: want annotation = false")
+	}
+
+	if _, err := db.Pool.Exec(ctx, `UPDATE runs SET state = 'signed' WHERE id = $1`, f.runID); err != nil {
+		t.Fatal(err)
+	}
+
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, insertNote, f.tenant, f.r, "Freezer alarm at 02:10, samples unaffected").Scan(&n2, &annotation)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !annotation {
+		t.Error("note on signed run: want annotation = true")
+	}
+	var sealed bool
+	if err := db.Pool.QueryRow(ctx, `SELECT lineage_node_sealed($1)`, f.r).Scan(&sealed); err != nil {
+		t.Fatal(err)
+	}
+	if !sealed {
+		t.Error("annotation broke the seal: want lineage_node_sealed = true")
+	}
+
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, f.tenant, "it@lab", "correct thaw time"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE notes SET body = 'Thawed at 09:15' WHERE id = $1`, n1)
+		return err
+	})
+	wantCode(t, "edit note written before signing", err, storage.CodeSealed)
+
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		if _, err := commitChangeSet(ctx, tx, f.tenant, "it@lab", "annotate sample check"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE notes SET body = 'Freezer alarm at 02:10; checked, samples unaffected' WHERE id = $1`, n2)
+		return err
+	})
+	wantCode(t, "edit annotation", err, "")
+
+	_, err = db.Pool.Exec(ctx, `UPDATE notes SET annotation = true WHERE id = $1`, n1)
+	wantCode(t, "owner sets annotation on a sealed-era note", err, storage.CodeAppendOnly)
+
+	// TEMP tables named runs and lineage_edges must not shadow the real ones.
+	err = db.WithTenant(ctx, f.tenant, as(f.tenant), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE runs (tenant_id uuid, node_id uuid, state text) ON COMMIT DROP`); err != nil {
+			t.Skipf("lde_app cannot create temp tables: %v", err)
+		}
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE lineage_edges (tenant_id uuid, from_id uuid, to_id uuid, relation text) ON COMMIT DROP`); err != nil {
+			return err
+		}
+		var shadowed bool
+		if err := tx.QueryRow(ctx, insertNote, f.tenant, f.r, "Shadowed insert").Scan(new(string), &shadowed); err != nil {
+			return err
+		}
+		if !shadowed {
+			t.Error("note on signed run with shadow tables: want annotation = true")
+		}
+		if _, err := commitChangeSet(ctx, tx, f.tenant, "it@lab", "shadowed edit"); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE notes SET body = 'Thawed at 09:30' WHERE id = $1`, n1)
+		return err
+	})
+	wantCode(t, "edit frozen note with shadow tables", err, storage.CodeSealed)
 }

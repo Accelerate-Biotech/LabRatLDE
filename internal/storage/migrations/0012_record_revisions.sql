@@ -100,11 +100,13 @@ CREATE TRIGGER record_revisions_no_truncate
     FOR EACH STATEMENT EXECUTE FUNCTION record_revisions_reject_mutation();
 
 -- SPEC-007-R10: runs_signed_immutable (0004) skips aborted runs; the params
--- of any run under a sealed node are frozen.
+-- of any run under a sealed node are frozen. The pinned search_path (also
+-- applied to nested calls) stops a TEMP table shadowing runs or lineage_edges.
 CREATE FUNCTION runs_params_sealed() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-    IF lineage_node_sealed(OLD.node_id) THEN
+    IF public.lineage_node_sealed(OLD.node_id) THEN
         RAISE EXCEPTION 'run % is sealed: its params cannot change', OLD.id USING ERRCODE = 'LDE04';
     END IF;
     RETURN NEW;
