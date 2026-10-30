@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved |
+| **Status** | Implemented |
 | **Owner** | Rob Bassett |
-| **Created / Updated** | 2026-10-18 / 2026-10-28 |
+| **Created / Updated** | 2026-10-18 / 2026-10-30 |
 | **Regulatory refs** | 21 CFR 11.10(d), 11.10(e), 11.10(g), 11.100(a), 11.300(a), 11.300(b) |
 | **Depends on** | `SPEC-001`, `SPEC-005` |
 

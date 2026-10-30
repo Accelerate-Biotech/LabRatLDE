@@ -254,5 +254,5 @@ Storage tests run SQL directly, as the owner (`db.Pool`) or as `lde_app` (`db.Wi
   - [x] 7.1b Migration `0010_sign_only_state`: `CREATE OR REPLACE FUNCTION runs_role_gate()` so an update into `signed` also needs `scientist` when any column but `state` changes. Integrity: yes
   - [x] 7.1c Verifier round 1 extras: record IdP sign-out, the self-disable guard, the 1-minute idle minimum and the full `/v1/me` and `/v1/principals` shapes in `design.md`; `POST /v1/principals` requires a reason, as `docs/identity.md` says
 - [x] 7.2 `uat-planner` writes [uat.md](uat.md)
-- [ ] 7.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
-- [ ] 7.4 Summary commit written as the PR description
+- [x] 7.3 Status set to Implemented, folder moved to `specs/implemented/`, `ROADMAP.md` updated
+- [x] 7.4 Summary commit written as the PR description

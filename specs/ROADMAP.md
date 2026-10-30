@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | Rob Bassett |
-| **Updated** | 2026-10-29 |
+| **Updated** | 2026-10-30 |
 | **Baseline** | [`SPEC-001`](implemented/SPEC-001-core-integrity/requirements.md) (Implemented) at commit `76a7ff0` |
 
 This is the plan for getting from the scaffold to a regulated pilot and beyond. Each spec is a folder holding `requirements.md`, `design.md` and `tasks.md` (template in `TEMPLATE/`); once implemented and verified it moves to `implemented/` with a `uat.md` user acceptance test plan. Every brief in §5 now has a **Draft** spec. Each spec lists its open questions; resolve them (the `spec-writer` agent can help: `claude --agent spec-writer`), then mark the spec Approved before any work starts. The briefs in §5 are kept as the summary. Where a spec refines a brief's dependencies, the spec wins.
@@ -14,7 +14,7 @@ This is the plan for getting from the scaffold to a regulated pilot and beyond. 
 | SPEC-003 | [Immutable protocol versions](implemented/SPEC-003-protocol-versions/requirements.md) | Implemented |
 | SPEC-004 | [Traceability harness](implemented/SPEC-004-traceability-harness/requirements.md) | Implemented |
 | SPEC-005 | [UI stack and workspace shell](implemented/SPEC-005-ui-workspace-shell/requirements.md) | Implemented |
-| SPEC-006 | [Identity and roles](SPEC-006-identity-and-roles/requirements.md) | Approved |
+| SPEC-006 | [Identity and roles](implemented/SPEC-006-identity-and-roles/requirements.md) | Implemented |
 | SPEC-007 | [Revisions, change sets and notes](SPEC-007-revisions-and-change-sets/requirements.md) | Draft |
 | SPEC-008 | [Electronic signatures v2](SPEC-008-electronic-signatures/requirements.md) | Draft |
 | SPEC-009 | [Schema registry and schema-driven forms](SPEC-009-schema-registry-and-forms/requirements.md) | Draft |

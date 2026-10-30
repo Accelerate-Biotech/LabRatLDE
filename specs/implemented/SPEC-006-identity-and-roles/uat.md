@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Build** | commit `276a44d` on `worktree-spec-006-identity` |
+| **Build** | branch `worktree-spec-006-identity`; application code unchanged since `62c2007` (later commits are UAT tooling and docs) |
 | **Written** | 2026-10-28 |
+| **Executed** | 2026-10-30 by Rob Bassett against the local Keycloak (`tools/keycloak/`): **all 16 cases passed** |
 | **Testers** | Bench scientist (alice), reviewer / QA (bob), lab admin (carol), QA / validation staff checking the Part 11 controls (a developer or IdP administrator will help with the terminal and IdP steps) |
 
 Nine of the twelve SPEC-006 requirements have automated tests (R01 to R09), but a person seeing a rule hold is still worth one case each. R10, R11 and R12 are `Test: no`: this plan is the only acceptance evidence for them.

@@ -1,6 +1,6 @@
 # Identity, roles and agents
 
-LabRat doesn't store passwords. In production (`LDE_ENV=prod`) every API call carries a bearer token from your OIDC identity provider (Entra ID, Okta, Keycloak, …), and each token maps to a **principal** that an admin provisioned. Roles are checked by the database itself, so no endpoint or script can skip them ([SPEC-006](../specs/SPEC-006-identity-and-roles/requirements.md)).
+LabRat doesn't store passwords. In production (`LDE_ENV=prod`) every API call carries a bearer token from your OIDC identity provider (Entra ID, Okta, Keycloak, …), and each token maps to a **principal** that an admin provisioned. Roles are checked by the database itself, so no endpoint or script can skip them ([SPEC-006](../specs/implemented/SPEC-006-identity-and-roles/requirements.md)).
 
 ## Principals and roles
 
